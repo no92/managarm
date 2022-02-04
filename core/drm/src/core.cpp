@@ -216,6 +216,10 @@ drm_core::Device::Device() {
 		bool validate(const Assignment&) override {
 			return true;
 		};
+
+		void writeToState(const Assignment assignment, std::unique_ptr<AtomicState> &state) override {
+			state->crtc(assignment.object->id())->active = assignment.intValue;
+		}
 	};
 	registerProperty(_activeProperty = std::make_shared<ActiveProperty>());
 
