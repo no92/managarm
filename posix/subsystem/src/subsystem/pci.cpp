@@ -179,6 +179,10 @@ async::detached run() {
 
 		drvcore::installDevice(device);
 		// TODO: Call realizeAttribute *before* installing the device.
+		auto drm_dir = std::make_shared<sysfs::Object>(device, "drm");
+		drm_dir->addObject();
+		auto drm_card0 = std::make_shared<sysfs::Object>(drm_dir, "card0");
+		drm_card0->addObject();
 		device->realizeAttribute(&configAttr);
 		device->realizeAttribute(&vendorAttr);
 		device->realizeAttribute(&deviceAttr);
