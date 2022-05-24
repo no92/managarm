@@ -17,6 +17,13 @@ drvcore::BusSubsystem *sysfsSubsystem;
 
 std::unordered_map<int, std::shared_ptr<drvcore::Device>> mbusMap;
 
+struct ConfigAttribute : sysfs::Attribute {
+	ConfigAttribute(std::string name)
+	: sysfs::Attribute{std::move(name), false} { }
+
+	async::result<std::string> show(sysfs::Object *object) override;
+};
+
 struct VendorAttribute : sysfs::Attribute {
 	VendorAttribute(std::string name)
 	: sysfs::Attribute{std::move(name), false} { }
@@ -52,6 +59,7 @@ struct SubsystemDeviceAttribute : sysfs::Attribute {
 	async::result<std::string> show(sysfs::Object *object) override;
 };
 
+ConfigAttribute configAttr{"config"};
 VendorAttribute vendorAttr{"vendor"};
 DeviceAttribute deviceAttr{"device"};
 PlainfbAttribute plainfbAttr{"owns_plainfb"};
@@ -82,6 +90,20 @@ struct Device final : drvcore::BusDevice {
 	uint32_t subsystemDeviceId;
 	bool ownsPlainfb = false;
 };
+
+async::result<std::string> ConfigAttribute::show(sysfs::Object *object) {
+	char buffer[0x40];
+	auto device = static_cast<Device *>(object);
+	buffer[0] = device->vendorId & 0xFF;
+	buffer[1] = device->vendorId >> 8;
+	buffer[2] = device->deviceId & 0xFF;
+	buffer[3] = device->deviceId >> 8;
+	buffer[44] = device->subsystemVendorId & 0xFF;
+	buffer[45] = device->subsystemVendorId >> 8;
+	buffer[46] = device->subsystemDeviceId & 0xFF;
+	buffer[47] = device->subsystemDeviceId >> 8;
+	co_return std::string{buffer};
+}
 
 async::result<std::string> VendorAttribute::show(sysfs::Object *object) {
 	char buffer[7]; // The format is 0x1234\0.
@@ -157,6 +179,7 @@ async::detached run() {
 
 		drvcore::installDevice(device);
 		// TODO: Call realizeAttribute *before* installing the device.
+		device->realizeAttribute(&configAttr);
 		device->realizeAttribute(&vendorAttr);
 		device->realizeAttribute(&deviceAttr);
 		device->realizeAttribute(&plainfbAttr);
