@@ -66,7 +66,7 @@ namespace {
 	constexpr bool logSignals = false;
 	constexpr bool logCleanup = false;
 
-	constexpr bool debugFaults = false;
+	constexpr bool debugFaults = true;
 }
 
 std::map<
