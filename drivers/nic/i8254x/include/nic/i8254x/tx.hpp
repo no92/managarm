@@ -1,5 +1,8 @@
 #pragma once
 
+#include <async/basic.hpp>
+#include <async/oneshot-event.hpp>
+#include <async/result.hpp>
 #include <arch/dma_pool.hpp>
 #include <arch/mem_space.hpp>
 #include <arch/variable.hpp>
@@ -67,6 +70,8 @@ public:
 	QueueIndex head();
 	QueueIndex tail();
 
+	async::result<void> submitDescriptor(arch::dma_buffer_view frame, Intel8254xNic &nic);
+	async::result<void> postDescriptor(arch::dma_buffer_view frame, Intel8254xNic &nic, Request *req, async::detached (*complete)(Request *));
 private:
 	Intel8254xNic &_nic;
 	arch::dma_array<TxDescriptor> _descriptors;
