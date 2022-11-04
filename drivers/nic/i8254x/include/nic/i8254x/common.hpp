@@ -4,6 +4,7 @@
 #include <arch/mem_space.hpp>
 #include <helix/memory.hpp>
 #include <netserver/nic.hpp>
+#include <nic/i8254x/queue.hpp>
 #include <protocols/hw/client.hpp>
 
 constexpr bool logDebug = true;
