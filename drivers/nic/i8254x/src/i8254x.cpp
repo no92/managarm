@@ -36,6 +36,40 @@ async::result<void> Intel8254xNic::init() {
 	_mmio.store(regs::fcttv, 0);
 
 	_mmio.store(regs::ctrl, _mmio.load(regs::ctrl) / flags::ctrl::vme(false));
+
+	auto eeprom_present = _mmio.load(regs::eecd) & flags::eecd::present;
+
+	if(!eeprom_present) {
+		std::cout << "i8254x: EEPROM not present, aborting";
+		co_return;
+	}
+
+	uint16_t m = co_await eepromRead(0);
+	mac_[0] = (m & 0xFF);
+	mac_[1] = ((m >> 8) & 0xFF);
+	m = co_await eepromRead(1);
+	mac_[2] = (m & 0xFF);
+	mac_[3] = ((m >> 8) & 0xFF);
+	m = co_await eepromRead(2);
+	mac_[4] = (m & 0xFF);
+	mac_[5] = ((m >> 8) & 0xFF);
+
+	_mmio.store(regs::ral_0, *(uint32_t *) mac_.data());
+	_mmio.store(regs::rah_0, *(uint16_t *) (mac_.data() + 4));
+
+	if constexpr (logDebug) std::cout << "i8254x: MAC " << mac_ << std::endl;
+
+async::result<uint16_t> Intel8254xNic::eepromRead(uint8_t address) {
+	_mmio.store(regs::eerd, flags::eerd::start(true) / flags::eerd::addr(address));
+
+	auto res = _mmio.load(regs::eerd);
+	while(!(res & flags::eerd::done)) {
+		usleep(1);
+		res = _mmio.load(regs::eerd);
+	}
+
+	co_return res & flags::eerd::data;
+}
 }
 
 namespace nic::intel8254x {
