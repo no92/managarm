@@ -68,6 +68,33 @@ async::result<void> Intel8254xNic::init() {
 
 	if constexpr (logDebug) std::cout << "i8254x: MAC " << mac_ << std::endl;
 
+	rxInit();
+}
+
+/**
+ * Initialize Receive for i8254x
+ *
+ * See the SDM at 14.4 Receive Initialization
+ */
+void Intel8254xNic::rxInit() {
+	uintptr_t physical = _rxQueue->getBase();
+
+	_mmio.store(regs::rdbah, (physical >> 32) & 0xFFFFFFFF);
+	_mmio.store(regs::rdbal, physical & 0xFFFFFFFF);
+	_mmio.store(regs::rdlen, _rxQueue->getLength());
+
+	_mmio.store(regs::rdh, 0);
+	_mmio.store(regs::rdt, _rxQueue->descriptors() - 1);
+
+	_mmio.store(regs::rctl, flags::rctl::receiver_enable(true) /
+		flags::rctl::receive_buffer_size(0) /
+		flags::rctl::broadcast_accept(true) /
+		flags::rctl::unicast_promiscuous(true) /
+		flags::rctl::multicast_promiscuous(true));
+
+	if constexpr (logDebug) std::cout << "i8254x: rx enabled" << std::endl;
+}
+
 async::result<uint16_t> Intel8254xNic::eepromRead(uint8_t address) {
 	_mmio.store(regs::eerd, flags::eerd::start(true) / flags::eerd::addr(address));
 

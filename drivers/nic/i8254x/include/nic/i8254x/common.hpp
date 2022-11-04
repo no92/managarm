@@ -22,6 +22,8 @@ public:
 	async::result<void> init();
 
 private:
+	void rxInit();
+
 	async::result<uint16_t> eepromRead(uint8_t address);
 
 	helix::Mapping _mmio_mapping;
