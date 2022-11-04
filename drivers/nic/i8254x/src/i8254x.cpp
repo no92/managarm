@@ -1,10 +1,16 @@
 #include <async/basic.hpp>
+#include <memory>
 #include <nic/i8254x/common.hpp>
 #include <nic/i8254x/regs.hpp>
+#include <nic/i8254x/rx.hpp>
 #include <unistd.h>
 
 Intel8254xNic::Intel8254xNic(protocols::hw::Device device)
 	: nic::Link(1500, &_dmaPool), _device{std::move(device)} {
+		auto rx = RxQueue(NUM_RX_DESCRIPTORS, *this);
+
+		_rxQueue = std::make_unique<RxQueue>(std::move(rx));
+
 		async::run(this->init(), helix::currentDispatcher);
 }
 

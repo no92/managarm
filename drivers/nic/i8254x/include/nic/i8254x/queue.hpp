@@ -49,3 +49,7 @@ struct Request {
 	async::oneshot_event event;
 	arch::dma_buffer_view frame;
 };
+
+struct DescriptorSpace {
+	uint8_t data[2048];
+};

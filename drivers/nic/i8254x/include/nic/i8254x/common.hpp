@@ -4,12 +4,18 @@
 #include <arch/mem_space.hpp>
 #include <helix/memory.hpp>
 #include <netserver/nic.hpp>
+#include <nic/i8254x/rx.hpp>
 #include <nic/i8254x/queue.hpp>
 #include <protocols/hw/client.hpp>
 
 constexpr bool logDebug = true;
 
+constexpr int NUM_RX_DESCRIPTORS = 256;
+
+struct RxQueue;
+
 struct Intel8254xNic : nic::Link {
+	friend RxQueue;
 public:
 	Intel8254xNic(protocols::hw::Device device);
 
@@ -23,6 +29,8 @@ private:
 
 	arch::contiguous_pool _dmaPool;
 	protocols::hw::Device _device;
+
+	std::unique_ptr<RxQueue> _rxQueue;
 
 	helix::UniqueDescriptor _irq;
 };
