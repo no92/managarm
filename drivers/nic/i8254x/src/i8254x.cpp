@@ -177,6 +177,16 @@ async::detached Intel8254xNic::processInterrupt() {
 
 		printf("i8254x: ICR %#x\n", uint32_t(status));
 
+		if(status & flags::icr::tx_queue_empty) {
+			handled |= flags::icr::tx_queue_empty(true).bits();
+		}
+
+		if(status & flags::icr::tx_desc_written_back) {
+			handled |= flags::icr::tx_desc_written_back(true).bits();
+
+			_txQueue->ackAll();
+		}
+
 		if(status & flags::icr::rxdmt0) {
 			handled |= flags::icr::rxdmt0(true).bits();
 		}

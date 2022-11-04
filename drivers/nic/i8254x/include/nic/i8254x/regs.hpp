@@ -81,6 +81,19 @@ namespace flags {
 
 	namespace icr {
 		/**
+		 * Transmit Descriptor Written Back
+		 *
+		 * Set when hardware processes a transmit descriptor with the RS bit set (and possibly IDE set).
+		 * If using delayed interrupts (IDE set), the interrupt occurs after the timer expires.
+		 */
+		constexpr arch::field<uint32_t, bool> tx_desc_written_back{0, 1};
+		/**
+		 * Transmit Queue Empty
+		 *
+		 * Set when the last descriptor block for a transmit queue has been used.
+		 */
+		constexpr arch::field<uint32_t, bool> tx_queue_empty{1, 1};
+		/**
 		 * Receive Descriptor Minimum Threshold Reached
 		 *
 		 * Indicates that the minimum number of receive descriptors are available and software should load more receive descriptors.
