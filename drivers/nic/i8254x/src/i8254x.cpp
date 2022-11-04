@@ -72,6 +72,7 @@ async::result<void> Intel8254xNic::init() {
 	txInit();
 
 	enableIrqs();
+	processInterrupt();
 }
 
 void Intel8254xNic::enableIrqs() {
@@ -141,6 +142,36 @@ async::result<uint16_t> Intel8254xNic::eepromRead(uint8_t address) {
 
 	co_return res & flags::eerd::data;
 }
+
+
+async::detached Intel8254xNic::processInterrupt() {
+	co_await _device.enableBusIrq();
+
+	// TODO: The kick here should not be required.
+	HEL_CHECK(helAcknowledgeIrq(_irq.getHandle(), kHelAckKick, 0));
+
+	uint64_t sequence = 0;
+	while(true) {
+		auto await = co_await helix_ng::awaitEvent(_irq, sequence);
+		HEL_CHECK(await.error());
+		sequence = await.sequence();
+
+		auto status = _mmio.load(regs::icr);
+		uint32_t handled = 0;
+
+		printf("i8254x: ICR %#x\n", uint32_t(status));
+
+		HEL_CHECK(helAcknowledgeIrq(_irq.getHandle(), kHelAckAcknowledge, sequence));
+
+		uint32_t unhandled = uint32_t(status) & ~(handled);
+
+		if(unhandled) {
+			char *buffer;
+			asprintf(&buffer, "i8254x: unhandled IRQ with status %#x", unhandled);
+			helPanic(buffer, strlen(buffer));
+			free(buffer);
+		}
+	}
 }
 
 namespace nic::intel8254x {
