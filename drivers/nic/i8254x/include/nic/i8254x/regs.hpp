@@ -12,11 +12,18 @@ namespace regs {
 	constexpr arch::scalar_register<uint32_t> fct{0x30};
 	constexpr arch::bit_register<uint32_t> rctl{0x100};
 	constexpr arch::scalar_register<uint32_t> fcttv{0x170};
+	constexpr arch::bit_register<uint32_t> tctl{0x400};
+	constexpr arch::bit_register<uint32_t> tipg{0x410};
 	constexpr arch::scalar_register<uint32_t> rdbal{0x2800};
 	constexpr arch::scalar_register<uint32_t> rdbah{0x2804};
 	constexpr arch::scalar_register<uint32_t> rdlen{0x2808};
 	constexpr arch::scalar_register<uint32_t> rdh{0x2810};
 	constexpr arch::scalar_register<uint32_t> rdt{0x2818};
+	constexpr arch::scalar_register<uint32_t> tdbal{0x3800};
+	constexpr arch::scalar_register<uint32_t> tdbah{0x3804};
+	constexpr arch::scalar_register<uint32_t> tdlen{0x3808};
+	constexpr arch::scalar_register<uint32_t> tdh{0x3810};
+	constexpr arch::scalar_register<uint32_t> tdt{0x3818};
 	constexpr arch::scalar_register<uint32_t> ral_0{0x5400};
 	constexpr arch::scalar_register<uint32_t> rah_0{0x5404};
 } // namespace regs
@@ -55,5 +62,18 @@ namespace flags {
 		constexpr arch::field<uint32_t, uint8_t> receive_buffer_size{16, 2};
 		constexpr arch::field<uint32_t, bool> bsex{25, 1};
 		constexpr arch::field<uint32_t, bool> strip_ethernet_crc{26, 1};
+	}
+
+	namespace tctl {
+		constexpr arch::field<uint32_t, bool> enable{1, 1};
+		constexpr arch::field<uint32_t, bool> pad_short_packets{3, 1};
+		constexpr arch::field<uint32_t, uint16_t> collision_distance{12, 10};
+		constexpr arch::field<uint32_t, bool> rtlc{24, 1};
+	}
+
+	namespace tipg {
+		constexpr arch::field<uint32_t, uint16_t> ipgt{0, 10};
+		constexpr arch::field<uint32_t, uint16_t> ipgr1{10, 10};
+		constexpr arch::field<uint32_t, uint16_t> ipgr2{20, 10};
 	}
 } // namespace flags

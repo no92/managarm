@@ -69,6 +69,7 @@ async::result<void> Intel8254xNic::init() {
 	if constexpr (logDebug) std::cout << "i8254x: MAC " << mac_ << std::endl;
 
 	rxInit();
+	txInit();
 }
 
 /**
@@ -93,6 +94,33 @@ void Intel8254xNic::rxInit() {
 		flags::rctl::multicast_promiscuous(true));
 
 	if constexpr (logDebug) std::cout << "i8254x: rx enabled" << std::endl;
+}
+
+/**
+ * Initialize Transmit for i8254x
+ *
+ * See the SDM at 14.5 Transmit Initialization
+ */
+void Intel8254xNic::txInit() {
+	uintptr_t physical = _txQueue->getBase();
+
+	_mmio.store(regs::tdbah, (physical >> 32) & 0xFFFFFFFF);
+	_mmio.store(regs::tdbal, physical & 0xFFFFFFFF);
+
+	/* Set the Transmit Descriptor Length (TDLEN) register to the size (in bytes) of the descriptor ring.
+	 * This register must be 128-byte aligned. */
+	_mmio.store(regs::tdlen, _txQueue->getLength());
+
+	/* The Transmit Descriptor Head and Tail (TDH/TDT) registers are initialized (by hardware) to 0b
+	 * after a power-on or a software initiated Ethernet controller reset. Software should write 0b to both
+	 * these registers to ensure this. */
+	_mmio.store(regs::tdh, 0);
+	_mmio.store(regs::tdt, 0);
+
+	_mmio.store(regs::tctl, flags::tctl::enable(true) / flags::tctl::pad_short_packets(true) / flags::tctl::rtlc(true));
+	_mmio.store(regs::tipg, flags::tipg::ipgt(10) / flags::tipg::ipgr1(10) / flags::tipg::ipgr2(10));
+
+	if constexpr (logDebug) std::cout << "i8254x: tx enabled" << std::endl;
 }
 
 async::result<uint16_t> Intel8254xNic::eepromRead(uint8_t address) {
