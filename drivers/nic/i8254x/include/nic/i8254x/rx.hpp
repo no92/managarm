@@ -36,6 +36,37 @@ struct RxQueue {
 private:
 	RxQueue(size_t descriptors, Intel8254xNic &nic);
 
+public:
+	/**
+	 * Return the physical address to the base of the descriptors
+	 */
+	uintptr_t getBase();
+
+	/**
+	 * Return the number of descriptors this queue can hold.
+	 */
+	size_t descriptors() {
+		return _descriptor_count;
+	}
+
+	/**
+	 * Return the length of the descriptor area in bytes.
+	 */
+	size_t getLength() {
+		return _descriptor_count * sizeof(RxDescriptor);
+	}
+
+	/**
+	 * Holds the index to the first descriptor to be written back into on packet reception by hardware.
+	 **/
+	QueueIndex head();
+	QueueIndex tail();
+	void tail(QueueIndex i);
+
+	bool empty() {
+		return head() == tail();
+	}
+private:
 	Intel8254xNic &_nic;
 	arch::dma_array<RxDescriptor> _descriptors;
 	arch::dma_array<DescriptorSpace> _descriptor_buffers;

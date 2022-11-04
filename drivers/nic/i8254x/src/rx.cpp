@@ -92,7 +92,7 @@ void RxQueue::ackAll() {
 }
 
 uintptr_t RxQueue::getBase() {
-	return helix_ng::ptrToPhysical(_descriptors);
+	return helix_ng::ptrToPhysical(&_descriptors[0]);
 }
 
 QueueIndex RxQueue::head() {

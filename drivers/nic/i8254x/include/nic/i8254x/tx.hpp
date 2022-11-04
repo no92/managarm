@@ -49,6 +49,25 @@ struct TxQueue {
 private:
 	TxQueue(size_t descriptors, Intel8254xNic &nic);
 
+public:
+	/**
+	 * Return the physical address to the base of the descriptors
+	 */
+	uintptr_t getBase();
+	void *getDescriptorPtr(size_t index);
+
+	size_t descriptors() {
+		return _descriptor_count;
+	}
+
+	size_t getLength() {
+		return _descriptor_count * sizeof(TxDescriptor);
+	}
+
+	QueueIndex head();
+	QueueIndex tail();
+
+private:
 	Intel8254xNic &_nic;
 	arch::dma_array<TxDescriptor> _descriptors;
 	arch::dma_array<DescriptorSpace> _descriptor_buffers;

@@ -84,7 +84,7 @@ void TxQueue::ackAll() {
 }
 
 uintptr_t TxQueue::getBase() {
-	return helix_ng::ptrToPhysical(_descriptors);
+	return helix_ng::ptrToPhysical(&_descriptors[0]);
 }
 
 void *TxQueue::getDescriptorPtr(size_t index) {
