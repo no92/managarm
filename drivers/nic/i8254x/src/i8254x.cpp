@@ -4,6 +4,7 @@
 #include <nic/i8254x/regs.hpp>
 #include <nic/i8254x/rx.hpp>
 #include <nic/i8254x/tx.hpp>
+#include <stdio.h>
 #include <unistd.h>
 
 Intel8254xNic::Intel8254xNic(protocols::hw::Device device)
@@ -141,6 +142,14 @@ async::result<uint16_t> Intel8254xNic::eepromRead(uint8_t address) {
 	}
 
 	co_return res & flags::eerd::data;
+}
+
+async::result<void> Intel8254xNic::receive(arch::dma_buffer_view frame) {
+	if constexpr (logDebug) puts("i8254x: ---------------- RECEIVE ----------------");
+	co_await _rxQueue->submitDescriptor(frame, *this);
+	if constexpr (logDebug) puts("i8254x: ---------------- RECEIVE OVER ----------------");
+
+	co_return;
 }
 
 
