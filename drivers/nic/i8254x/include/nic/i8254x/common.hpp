@@ -26,6 +26,7 @@ public:
 	async::result<void> init();
 
 private:
+	void enableIrqs();
 	void rxInit();
 	void txInit();
 

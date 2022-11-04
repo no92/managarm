@@ -10,6 +10,8 @@ namespace regs {
 	constexpr arch::scalar_register<uint32_t> fcal{0x28};
 	constexpr arch::scalar_register<uint32_t> fcah{0x2C};
 	constexpr arch::scalar_register<uint32_t> fct{0x30};
+	constexpr arch::bit_register<uint32_t> icr{0xC0};
+	constexpr arch::scalar_register<uint32_t> ims{0xD0};
 	constexpr arch::bit_register<uint32_t> rctl{0x100};
 	constexpr arch::scalar_register<uint32_t> fcttv{0x170};
 	constexpr arch::bit_register<uint32_t> tctl{0x400};

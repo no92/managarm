@@ -70,6 +70,13 @@ async::result<void> Intel8254xNic::init() {
 
 	rxInit();
 	txInit();
+
+	enableIrqs();
+}
+
+void Intel8254xNic::enableIrqs() {
+	_mmio.store(regs::ims, 0xFF & ~4);
+	_mmio.load(regs::icr);
 }
 
 /**
