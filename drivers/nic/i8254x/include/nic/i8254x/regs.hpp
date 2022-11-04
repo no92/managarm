@@ -78,4 +78,21 @@ namespace flags {
 		constexpr arch::field<uint32_t, uint16_t> ipgr1{10, 10};
 		constexpr arch::field<uint32_t, uint16_t> ipgr2{20, 10};
 	}
+
+	namespace icr {
+		/**
+		 * Receive Descriptor Minimum Threshold Reached
+		 *
+		 * Indicates that the minimum number of receive descriptors are available and software should load more receive descriptors.
+		 */
+		constexpr arch::field<uint32_t, bool> rxdmt0{4, 1};
+		/**
+		 * Receiver Timer Interrupt
+		 *
+		 * Set when the receiver timer expires.
+		 * The receiver timer is used for receiver descriptor packing.
+		 * Timer expiration flushes any accumulated descriptors and sets an interrupt event when enabled.
+		 */
+		constexpr arch::field<uint32_t, bool> rxt0{7, 1};
+	}
 } // namespace flags

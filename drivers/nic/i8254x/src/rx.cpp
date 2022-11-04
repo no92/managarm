@@ -73,7 +73,7 @@ void RxQueue::ackAll() {
 			if constexpr (logDebug) std::cout << "i8254x/RxQueue: ACKing rx desc id " << i() << std::endl;
 
 			/* copy out the received packet */
-			void *virt_addr = reinterpret_cast<void *>(uintptr_t(descriptor_space) + (2048 * i()));
+			void *virt_addr = reinterpret_cast<void *>(&_descriptor_buffers[i()]);
 			memcpy(request->frame.data(), virt_addr, desc->length);
 
 			/* run the callback for packet reception */

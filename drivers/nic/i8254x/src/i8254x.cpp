@@ -170,6 +170,16 @@ async::detached Intel8254xNic::processInterrupt() {
 
 		printf("i8254x: ICR %#x\n", uint32_t(status));
 
+		if(status & flags::icr::rxdmt0) {
+			handled |= flags::icr::rxdmt0(true).bits();
+		}
+
+		if(status & flags::icr::rxt0) {
+			handled |= flags::icr::rxt0(true).bits();
+
+			_rxQueue->ackAll();
+		}
+
 		HEL_CHECK(helAcknowledgeIrq(_irq.getHandle(), kHelAckAcknowledge, sequence));
 
 		uint32_t unhandled = uint32_t(status) & ~(handled);
