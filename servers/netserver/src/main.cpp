@@ -36,6 +36,7 @@ std::unordered_set<std::string_view> nic_vendor_ids = {
 
 std::unordered_set<std::string_view> i8254x_device_ids = {
 	"100e", /* QEMU's e1000 device */
+	"10d3", /* QEMU's e1000e device */
 };
 
 // Maps mbus IDs to device objects

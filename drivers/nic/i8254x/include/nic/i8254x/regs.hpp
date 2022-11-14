@@ -26,6 +26,7 @@ namespace regs {
 	constexpr arch::scalar_register<uint32_t> tdlen{0x3808};
 	constexpr arch::scalar_register<uint32_t> tdh{0x3810};
 	constexpr arch::scalar_register<uint32_t> tdt{0x3818};
+	constexpr arch::scalar_register<uint32_t> mta{0x5200};
 	constexpr arch::scalar_register<uint32_t> ral_0{0x5400};
 	constexpr arch::scalar_register<uint32_t> rah_0{0x5404};
 } // namespace regs
@@ -107,5 +108,13 @@ namespace flags {
 		 * Timer expiration flushes any accumulated descriptors and sets an interrupt event when enabled.
 		 */
 		constexpr arch::field<uint32_t, bool> rxt0{7, 1};
+
+		/**
+		 * Interrupt Asserted.
+		 *
+		 * This bit is set when the LAN port has a pending interrupt. If the interrupt is enabled
+		 * in the PCI configuration space, an interrupt is asserted.
+		 */
+		constexpr arch::field<uint32_t, bool> int_asserted{31, 1};
 	}
 } // namespace flags

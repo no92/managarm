@@ -47,6 +47,10 @@ async::result<void> Intel8254xNic::init() {
 
 	_mmio.store(regs::ctrl, _mmio.load(regs::ctrl) / flags::ctrl::vme(false));
 
+	for(size_t i = 0; i < 128; i++) {
+		_mmio.store(arch::scalar_register<uint32_t>(regs::mta.offset() + (i * 4)), 0);
+	}
+
 	auto eeprom_present = _mmio.load(regs::eecd) & flags::eecd::present;
 
 	if(!eeprom_present) {
@@ -197,15 +201,16 @@ async::detached Intel8254xNic::processInterrupt() {
 			_rxQueue->ackAll();
 		}
 
+		if(status & flags::icr::int_asserted) {
+			handled |= flags::icr::int_asserted(true).bits();
+		}
+
 		HEL_CHECK(helAcknowledgeIrq(_irq.getHandle(), kHelAckAcknowledge, sequence));
 
 		uint32_t unhandled = uint32_t(status) & ~(handled);
 
 		if(unhandled) {
-			char *buffer;
-			asprintf(&buffer, "i8254x: unhandled IRQ with status %#x", unhandled);
-			helPanic(buffer, strlen(buffer));
-			free(buffer);
+			printf("i8254x: unhandled IRQ with status 0x%x\n", unhandled);
 		}
 	}
 }
