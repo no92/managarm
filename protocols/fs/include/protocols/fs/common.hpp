@@ -44,9 +44,13 @@ using PollWaitResult = std::tuple<uint64_t, int>;
 using PollStatusResult = std::tuple<uint64_t, int>;
 
 struct RecvData {
-	size_t dataLength;
 	size_t addressLength;
+	size_t dataLength;
 	std::vector<char> ctrl;
+	uint32_t flags;
+
+	RecvData(std::vector<char> ctrl, size_t data_size, size_t addr_size, uint32_t flags = 0)
+		: addressLength{addr_size}, dataLength{data_size}, ctrl{ctrl}, flags{flags} { };
 };
 
 using RecvResult = std::variant<Error, RecvData>;
