@@ -18,6 +18,7 @@ struct MacAddress {
 
 	friend bool operator==(const MacAddress &l, const MacAddress &r);
 	friend bool operator!=(const MacAddress &l, const MacAddress &r);
+	explicit operator bool() const;
 
 	inline friend uint8_t *begin(MacAddress &m) {
 		return &m.mac_[0];

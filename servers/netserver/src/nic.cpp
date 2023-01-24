@@ -24,6 +24,10 @@ bool operator!=(const MacAddress &l, const MacAddress &r) {
 	return !operator==(l, r);
 }
 
+MacAddress::operator bool() const {
+	return !(mac_[0] == 0 && mac_[1] == 0 && mac_[2] == 0 && mac_[3] == 0 && mac_[4] == 0 && mac_[5] == 0);
+}
+
 MacAddress Link::deviceMac() {
 	return mac_;
 }
