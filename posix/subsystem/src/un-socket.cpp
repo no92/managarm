@@ -1,4 +1,5 @@
 
+#include <stddef.h>
 #include <string.h>
 #include <sys/epoll.h>
 #include <sys/ioctl.h>
@@ -321,7 +322,9 @@ public:
 		memcpy(&sa, addr_ptr, addr_length);
 		std::string path;
 
-		if(sa.sun_path[0] == '\0') {
+		if(addr_length <= offsetof(struct sockaddr_un, sun_path)) {
+			co_return protocols::fs::Error::illegalArguments;
+		} else if(sa.sun_path[0] == '\0') {
 			path.resize(addr_length - sizeof(sa.sun_family) - 1);
 			memcpy(path.data(), sa.sun_path + 1, addr_length - sizeof(sa.sun_family) - 1);
 			_nameType = NameType::abstract;
@@ -374,7 +377,9 @@ public:
 		memcpy(&sa, addr_ptr, addr_length);
 		std::string path;
 
-		if(sa.sun_path[0] == '\0') {
+		if(addr_length <= offsetof(struct sockaddr_un, sun_path)) {
+			co_return protocols::fs::Error::illegalArguments;
+		} else if(sa.sun_path[0] == '\0') {
 			path.resize(addr_length - sizeof(sa.sun_family) - 1);
 			memcpy(path.data(), sa.sun_path + 1, addr_length - sizeof(sa.sun_family) - 1);
 		} else {
