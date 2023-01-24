@@ -1,10 +1,18 @@
+#include <netserver/id-allocator.hpp>
 #include <netserver/nic.hpp>
+#include <stdio.h>
 
 #include <algorithm>
 #include <cstring>
 #include <arch/bit.hpp>
 #include "ip/ip4.hpp"
 #include "ip/arp.hpp"
+
+namespace {
+
+id_allocator<int> _allocator;
+
+}
 
 namespace nic {
 uint8_t &MacAddress::operator[](size_t idx) {
@@ -28,12 +36,31 @@ MacAddress::operator bool() const {
 	return !(mac_[0] == 0 && mac_[1] == 0 && mac_[2] == 0 && mac_[3] == 0 && mac_[4] == 0 && mac_[5] == 0);
 }
 
+Link::Link(unsigned int mtu, arch::dma_pool *dmaPool)
+: mtu(mtu), dmaPool_(dmaPool), index_{_allocator.allocate()} {
+
+}
+
 MacAddress Link::deviceMac() {
 	return mac_;
 }
 
 arch::dma_pool *Link::dmaPool() {
 	return dmaPool_;
+}
+
+int Link::index() {
+	return index_;
+}
+
+std::string Link::name() {
+	if(!mac_) {
+		return "eth" + std::to_string(index_ - 1);
+	} else {
+		char buf[16];
+		snprintf(buf, 16, "enx%02x%02x%02x%02x%02x%02x", mac_[0], mac_[1], mac_[2], mac_[3], mac_[4], mac_[5]);
+		return std::string(buf);
+	}
 }
 
 Link::AllocatedBuffer Link::allocateFrame(MacAddress to, EtherType type,
