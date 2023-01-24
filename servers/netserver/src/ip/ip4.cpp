@@ -30,6 +30,10 @@ bool Ip4Router::addRoute(Route r) {
 	return routes.emplace(std::move(r)).second;
 }
 
+bool Ip4Router::removeRoute(Route r) {
+	return routes.erase(r) == 1;
+}
+
 std::optional<Route> Ip4Router::resolveRoute(uint32_t ip) {
 	for (auto i = routes.begin(); i != routes.end(); i++) {
 		const auto &r = *i;
@@ -48,10 +52,24 @@ bool operator<(const CidrAddress &lhs, const CidrAddress &) {
 	return std::tie(lhs.prefix, lhs.ip) < std::tie(lhs.prefix, lhs.ip);
 }
 
+bool operator==(const CidrAddress &lhs, const CidrAddress &rhs) {
+	return (lhs.ip == rhs.ip) && (lhs.prefix == rhs.prefix);
+}
+
 bool operator<(const Route &lhs, const Route &rhs) {
 	// bigger MTU is better, and hence sorts lower
-	return std::tie(lhs.network, lhs.metric, rhs.mtu) <
-		std::tie(rhs.network, rhs.metric, lhs.mtu);
+	return std::tie(lhs.network, lhs.metric, lhs.scope, rhs.mtu, lhs.type, lhs.protocol, lhs.family, lhs.gateway, lhs.source) <
+		std::tie(rhs.network, rhs.metric, rhs.scope, lhs.mtu, rhs.type, rhs.protocol, rhs.family, rhs.gateway, rhs.source);
+}
+
+bool operator==(const Route &lhs, const Route &rhs) {
+	if(!lhs.link.expired() && !rhs.link.expired()) {
+		if(lhs.link.lock()->index() != rhs.link.lock()->index()) {
+			return false;
+		}
+	}
+
+	return std::tie(lhs.mtu, lhs.gateway, lhs.metric, lhs.source) == std::tie(rhs.mtu, rhs.gateway, rhs.metric, rhs.source) && lhs.network == rhs.network;
 }
 
 bool Ip4Packet::parse(arch::dma_buffer owner, arch::dma_buffer_view frame) {
@@ -141,7 +159,7 @@ struct Ip4Socket {
 			e != protocols::fs::Error::none) {
 			co_return e;
 		}
-		
+
 		// TODO(arsen): check other broadcast addresses too
 		if (ip == INADDR_ANY) {
 			co_return protocols::fs::Error::accessDenied;

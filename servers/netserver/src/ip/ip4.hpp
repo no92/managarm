@@ -58,11 +58,13 @@ struct Ip4Router {
 		uint8_t family = 0;
 
 		friend bool operator<(const Route &, const Route &);
+		friend bool operator==(const Route &, const Route &);
 	};
 
 	// false if insertion fails
 	bool addRoute(Route r);
 	std::optional<Route> resolveRoute(uint32_t ip);
+	bool removeRoute(Route r);
 
 	inline const std::set<Route> &getRoutes() const {
 		return routes;

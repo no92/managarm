@@ -112,4 +112,50 @@ void NetlinkSocket::getRoute(struct nlmsghdr *hdr) {
 	sendDone(hdr);
 }
 
+void NetlinkSocket::deleteRoute(struct nlmsghdr *hdr) {
+	auto attrs = NetlinkAttr(hdr, nl::packets::rt{});
+
+	if(!attrs.has_value()) {
+		sendError(hdr, EINVAL);
+		return;
+	}
+
+	Ip4Router::Route route = { {0, 0}, {} };
+
+	for(auto attr : *attrs) {
+		switch(attr.type()) {
+			case RTA_GATEWAY: {
+				uint32_t gateway = ntohl(attr.data<uint32_t>().value_or(0));
+				route.gateway = gateway;
+				break;
+			}
+			case RTA_PREFSRC: {
+				uint32_t prefsrc = ntohl(attr.data<uint32_t>().value_or(0));
+				route.source = prefsrc;
+				break;
+			}
+			case RTA_OIF: {
+				int if_index = attr.data<int>().value_or(0);
+				auto nic = nic::Link::byIndex(if_index);
+				if(nic) {
+					route.link = nic.value();
+				}
+				break;
+			}
+			default:
+				std::cout << "netlink: ignoring unknown attr " << attr.type() << std::endl;
+				break;
+		}
+
+		for(auto r : ip4Router().getRoutes()) {
+			if(r == route) {
+				ip4Router().removeRoute(r);
+			}
+		}
+	}
+
+	if(hdr->nlmsg_flags & NLM_F_ACK)
+		sendAck(hdr);
+}
+
 } // namespace nl
