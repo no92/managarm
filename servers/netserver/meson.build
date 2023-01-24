@@ -1,11 +1,12 @@
-src = [ 
+src = [
 	'src/ip/arp.cpp',
 	'src/ip/checksum.cpp',
 	'src/ip/ip4.cpp',
 	'src/ip/tcp4.cpp',
 	'src/ip/udp4.cpp',
 	'src/main.cpp',
-	'src/nic.cpp'
+	'src/nic.cpp',
+	'src/netlink/netlink.cpp',
 ]
 
 executable('netserver', src,
