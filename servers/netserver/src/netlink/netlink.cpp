@@ -92,6 +92,8 @@ async::result<frg::expected<protocols::fs::Error, size_t>> NetlinkSocket::sendMs
 			self->getRoute(hdr);
 		} else if(hdr->nlmsg_type == RTM_DELROUTE) {
 			self->deleteRoute(hdr);
+		} else if(hdr->nlmsg_type == RTM_NEWLINK) {
+			self->sendError(hdr, EPERM);
 		} else if(hdr->nlmsg_type == RTM_GETLINK) {
 			self->getLink(hdr);
 		} else if(hdr->nlmsg_type == RTM_DELLINK) {
