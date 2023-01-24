@@ -61,6 +61,9 @@ struct Link {
 	unsigned int mtu;
 
 	static std::optional<std::shared_ptr<Link>> byIndex(int index);
+
+	static std::pair<std::unordered_map<int64_t, std::shared_ptr<nic::Link>>::iterator,
+	std::unordered_map<int64_t, std::shared_ptr<nic::Link>>::iterator> getLinks();
 protected:
 	arch::dma_pool *dmaPool_;
 	MacAddress mac_;

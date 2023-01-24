@@ -26,4 +26,19 @@ void NetlinkSocket::sendDone(struct nlmsghdr *hdr) {
 	_recvQueue.push_back(b.packet());
 }
 
+void NetlinkSocket::sendError(struct nlmsghdr *hdr, int err) {
+	assert(hdr->nlmsg_len >= sizeof(*hdr));
+
+	NetlinkBuilder b;
+
+	b.header(NLMSG_ERROR, 0, hdr->nlmsg_seq, 0);
+
+	b.message<struct nlmsgerr>({
+		.error = -err,
+		.msg = *hdr,
+	});
+
+	_recvQueue.push_back(b.packet());
+}
+
 } // namespace nl
