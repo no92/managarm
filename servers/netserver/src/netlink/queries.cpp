@@ -232,4 +232,52 @@ void NetlinkSocket::deleteRoute(struct nlmsghdr *hdr) {
 		sendAck(hdr);
 }
 
+void NetlinkSocket::newAddr(struct nlmsghdr *hdr) {
+	const struct ifaddrmsg *msg;
+
+	if(auto opt = netlinkMessage<struct ifaddrmsg>(hdr, hdr->nlmsg_len))
+		msg = *opt;
+	else {
+		sendError(hdr, EINVAL);
+		return;
+	}
+
+	auto attrs = NetlinkAttr(hdr, nl::packets::ifaddr{});
+
+	if(!attrs.has_value()) {
+		sendError(hdr, EINVAL);
+		return;
+	}
+
+	uint32_t addr = 0;
+	uint8_t prefix = msg->ifa_prefixlen;
+	auto nic = nic::Link::byIndex(msg->ifa_index);
+
+	if(!nic) {
+		sendError(hdr, ENODEV);
+		return;
+	}
+
+	for(auto &attr : *attrs) {
+		switch(attr.type()) {
+			case IFA_ADDRESS: {
+				addr = ntohl(attr.data<uint32_t>().value_or(0));
+				break;
+			}
+			default: {
+				std::cout << "netserver: ignoring unknown rtattr type " << attr.type() << " in RTM_NEWADDR request" << std::endl;
+				break;
+			}
+		}
+	}
+
+	if(addr)
+		ip4().setLink({addr, prefix}, nic.value());
+
+	if(hdr->nlmsg_flags & NLM_F_ACK)
+		sendAck(hdr);
+
+	return;
+}
+
 } // namespace nl
