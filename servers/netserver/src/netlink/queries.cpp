@@ -305,4 +305,66 @@ void NetlinkSocket::getAddr(struct nlmsghdr *hdr) {
 	return;
 }
 
+void NetlinkSocket::deleteAddr(struct nlmsghdr *hdr) {
+	const struct ifaddrmsg *msg;
+
+	if(auto opt = netlinkMessage<struct ifaddrmsg>(hdr, hdr->nlmsg_len))
+		msg = *opt;
+	else {
+		sendError(hdr, EINVAL);
+		return;
+	}
+
+	auto attrs = NetlinkAttr(hdr, nl::packets::ifaddr{});
+
+	if(!attrs.has_value()) {
+		sendError(hdr, EINVAL);
+		return;
+	}
+
+	uint32_t addr = 0;
+	auto nic_by_index = nic::Link::byIndex(msg->ifa_index);
+
+	if(!nic_by_index) {
+		sendError(hdr, ENODEV);
+		return;
+	}
+
+	for(auto attr : *attrs) {
+		switch(attr.type()) {
+			case IFA_ADDRESS: {
+				addr = ntohl(attr.data<uint32_t>().value_or(0));
+
+				if(addr) {
+					auto nic_by_addr = ip4().getLink(addr);
+
+					if(nic_by_addr == nullptr || nic_by_addr->index() != nic_by_index.value()->index()) {
+						sendError(hdr, EINVAL);
+						return;
+					}
+				}
+				break;
+			}
+			default: {
+				std::cout << "netserver: ignoring unknown rtattr type " << attr.type() << " in RTM_DELADDR request" << std::endl;
+				break;
+			}
+		}
+	}
+
+	auto cidr = ip4().getLinkByIndex(msg->ifa_index);
+
+	if(cidr)
+		ip4().deleteLink(cidr.value());
+	else {
+		sendError(hdr, EINVAL);
+		return;
+	}
+
+	if(hdr->nlmsg_flags & NLM_F_ACK)
+		sendAck(hdr);
+
+	return;
+}
+
 } // namespace nl
