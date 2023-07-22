@@ -97,6 +97,14 @@ struct File {
 		return _statusPage.getMemory();
 	}
 
+	void setDriverContext(void *new_context) {
+		_driverContext = new_context;
+	}
+
+	void *getDriverContext() {
+		return _driverContext;
+	}
+
 private:
 	void _retirePageFlip(uint64_t cookie, uint32_t crtc_id);
 
@@ -121,6 +129,8 @@ private:
 
 	bool universalPlanes;
 	bool atomic;
+
+	void *_driverContext = nullptr;
 };
 
 struct PrimeFile {
