@@ -396,6 +396,27 @@ async::result<void> GfxDevice::ioctl(void *object, uint32_t id, helix_ng::RecvIn
 
 			co_return;
 		}
+		case managarm::fs::DrmIoctlVirtioResourceInfoRequest::message_id: {
+			auto req = bragi::parse_head_only<managarm::fs::DrmIoctlVirtioResourceInfoRequest>(msg);
+			assert(req);
+
+			auto bo = static_cast<GfxDevice::BufferObject *>(drm_file->resolveHandle(req->bo_handle()));
+			if(!bo) {
+				auto [dismiss] = co_await helix_ng::exchangeMsgs(conversation, helix_ng::dismiss());
+				HEL_CHECK(dismiss.error());
+			}
+
+			managarm::fs::DrmIoctlVirtioResourceInfoReply resp;
+			resp.set_res_handle(bo->resourceId());
+			resp.set_size(bo->getSize());
+
+			auto [send_resp] = co_await helix_ng::exchangeMsgs(conversation,
+				helix_ng::sendBragiHeadOnly(resp, frg::stl_allocator{})
+			);
+			HEL_CHECK(send_resp.error());
+
+			co_return;
+		}
 		default: {
 			std::cout << "\e[31m" "core/drm: Unknown virtio_gpu ioctl() message with ID "
 					<< id << "\e[39m" << std::endl;
