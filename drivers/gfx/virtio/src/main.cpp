@@ -1,8 +1,6 @@
 
 #include <assert.h>
-#include <stdio.h>
 #include <deque>
-#include <optional>
 #include <functional>
 #include <iostream>
 #include <memory>
@@ -11,20 +9,20 @@
 #include <arch/bits.hpp>
 #include <arch/register.hpp>
 #include <async/result.hpp>
+#include <core/drm/core.hpp>
+#include <fs.bragi.hpp>
 #include <helix/ipc.hpp>
 #include <linux/virtio_gpu.h>
 #include <protocols/fs/server.hpp>
 #include <protocols/hw/client.hpp>
 #include <protocols/mbus/client.hpp>
 #include <protocols/svrctl/server.hpp>
-#include <core/drm/core.hpp>
 
 #include <libdrm/drm.h>
 #include <libdrm/drm_mode.h>
 
 #include "src/commands.hpp"
 #include "virtio.hpp"
-#include <fs.bragi.hpp>
 
 // Maps mbus IDs to device objects
 std::unordered_map<int64_t, std::shared_ptr<GfxDevice>> baseDeviceMap;
@@ -203,6 +201,20 @@ std::tuple<int, int, int> GfxDevice::driverVersion() {
 
 std::tuple<std::string, std::string, std::string> GfxDevice::driverInfo() {
 	return {"virtio_gpu", "virtio GPU", "0"};
+}
+
+async::result<void> GfxDevice::ioctl(void *object, uint32_t id, helix_ng::RecvInlineResult msg, helix::UniqueLane conversation) {
+	auto drm_file = static_cast<drm_core::File *>(object);
+
+	switch(id) {
+		default: {
+			std::cout << "\e[31m" "core/drm: Unknown virtio_gpu ioctl() message with ID "
+					<< id << "\e[39m" << std::endl;
+
+			auto [dismiss] = co_await helix_ng::exchangeMsgs(conversation, helix_ng::dismiss());
+			HEL_CHECK(dismiss.error());
+		}
+	}
 }
 
 std::pair<std::shared_ptr<drm_core::BufferObject>, uint32_t>

@@ -128,6 +128,7 @@ struct GfxDevice final : drm_core::Device, std::enable_shared_from_this<GfxDevic
 	std::tuple<int, int, int> driverVersion() override;
 	//returns name, desc, date
 	std::tuple<std::string, std::string, std::string> driverInfo() override;
+	async::result<void> ioctl(void *object, uint32_t id, helix_ng::RecvInlineResult, helix::UniqueLane conversation) override;
 
 private:
 	std::shared_ptr<Crtc> _theCrtcs[16];
