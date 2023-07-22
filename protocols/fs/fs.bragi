@@ -736,3 +736,13 @@ head(128):
 tail:
 	Ifconf[] ifconf;
 }
+
+message DrmCardDriverRequest 21 {
+head(128):
+}
+
+message DrmCardDriverReply 22 {
+head(128):
+	Errors error;
+	string driver_id;
+}

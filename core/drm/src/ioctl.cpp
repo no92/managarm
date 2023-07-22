@@ -1156,6 +1156,17 @@ drm_core::File::ioctl(void *object, uint32_t id, helix_ng::RecvInlineResult msg,
 			helix_ng::sendBragiHeadOnly(resp, frg::stl_allocator{})
 		);
 		HEL_CHECK(send_resp.error());
+	}else if(id == managarm::fs::DrmCardDriverRequest::message_id) {
+		managarm::fs::DrmCardDriverReply resp;
+		resp.set_error(managarm::fs::Errors::SUCCESS);
+		auto driver_name = std::get<0>(self->_device->driverInfo());
+		resp.set_driver_id(driver_name);
+
+		auto [send_resp] = co_await helix_ng::exchangeMsgs(
+			conversation,
+			helix_ng::sendBragiHeadOnly(resp, frg::stl_allocator{})
+		);
+		HEL_CHECK(send_resp.error());
 	}else{
 		std::cout << "\e[31m" "core/drm: Unknown ioctl() message with ID "
 				<< id << "\e[39m" << std::endl;
