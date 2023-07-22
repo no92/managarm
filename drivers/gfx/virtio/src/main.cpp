@@ -273,6 +273,26 @@ async::result<void> GfxDevice::ioctl(void *object, uint32_t id, helix_ng::RecvIn
 
 			co_return;
 		}
+		case managarm::fs::DrmIoctlVirtioGetCapsRequest::message_id: {
+			if(logDrmRequests)
+				std::cout << "gfx/virtio: VIRTIO_GET_CAPS" << std::endl;
+			auto req = bragi::parse_head_only<managarm::fs::DrmIoctlVirtioGetCapsRequest>(msg);
+			assert(req);
+
+			auto capset = co_await Cmd::getCapset(req->id(), req->version(), req->size(), this);
+
+			managarm::fs::DrmIoctlVirtioGetCapsReply resp;
+			resp.set_size(capset.size());
+
+			auto [send_resp, send_buf] = co_await helix_ng::exchangeMsgs(conversation,
+				helix_ng::sendBragiHeadOnly(resp, frg::stl_allocator{}),
+				helix_ng::sendBuffer(capset.data(), capset.size())
+			);
+			HEL_CHECK(send_resp.error());
+			HEL_CHECK(send_buf.error());
+
+			co_return;
+		}
 		default: {
 			std::cout << "\e[31m" "core/drm: Unknown virtio_gpu ioctl() message with ID "
 					<< id << "\e[39m" << std::endl;

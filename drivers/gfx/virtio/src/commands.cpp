@@ -192,3 +192,25 @@ async::result<spec::CapsetInfo> Cmd::getCapsetInfo(uint32_t capId, GfxDevice *de
 
 	co_return std::move(result);
 }
+
+async::result<std::vector<uint8_t>> Cmd::getCapset(uint32_t cap_id, uint32_t cap_version, uint32_t max_size, GfxDevice *device) {
+	spec::GetCapset req{};
+	req.header.type = spec::cmd::getCapset;
+	req.capset_id = cap_id;
+	req.capset_version = cap_version;
+
+	spec::Header resp;
+	std::vector<uint8_t> buf(max_size);
+	virtio_core::Chain chain;
+	co_await virtio_core::scatterGather(virtio_core::hostToDevice, chain, device->_controlQ,
+			arch::dma_buffer_view{nullptr, &req, sizeof(spec::GetCapsetInfo)});
+	co_await virtio_core::scatterGather(virtio_core::deviceToHost, chain, device->_controlQ,
+			arch::dma_buffer_view{nullptr, &resp, sizeof(spec::Header)});
+	co_await virtio_core::scatterGather(virtio_core::deviceToHost, chain, device->_controlQ,
+			arch::dma_buffer_view{nullptr, buf.data(), max_size});
+	co_await AwaitableRequest{device->_controlQ, chain.front()};
+
+	assert(resp.type == spec::resp::capset);
+
+	co_return std::move(buf);
+}

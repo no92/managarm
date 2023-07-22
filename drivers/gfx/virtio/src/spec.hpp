@@ -141,6 +141,12 @@ struct CapsetInfo {
 	uint32_t padding;
 };
 
+struct GetCapset {
+	Header header;
+	uint32_t capset_id;
+	uint32_t capset_version;
+};
+
 namespace cfg {
 	inline constexpr arch::scalar_register<uint32_t> numScanouts(8);
 } //namespace cfg
