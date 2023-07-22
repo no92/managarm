@@ -147,6 +147,29 @@ struct GetCapset {
 	uint32_t capset_version;
 };
 
+struct CreateContext {
+	Header header;
+	uint32_t nlen;
+	uint32_t context_init;
+	char debug_name[64];
+};
+
+struct Create3d {
+	Header header;
+	uint32_t resource_id;
+	uint32_t target;
+	uint32_t format;
+	uint32_t bind;
+	uint32_t width;
+	uint32_t height;
+	uint32_t depth;
+	uint32_t array_size;
+	uint32_t last_level;
+	uint32_t nr_samples;
+	uint32_t flags;
+	uint32_t padding;
+};
+
 namespace cfg {
 	inline constexpr arch::scalar_register<uint32_t> numScanouts(8);
 } //namespace cfg

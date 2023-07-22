@@ -214,3 +214,51 @@ async::result<std::vector<uint8_t>> Cmd::getCapset(uint32_t cap_id, uint32_t cap
 
 	co_return std::move(buf);
 }
+
+async::result<void> Cmd::createContext(uint32_t context_id, uint32_t context_init, std::string debug_name, GfxDevice *device) {
+	spec::CreateContext req{};
+	req.header.type = spec::cmd::ctxCreate;
+	req.header.contextId = context_id;
+	req.context_init = context_init;
+	req.nlen = std::min(debug_name.length(), 60UL);
+	strncpy(req.debug_name, debug_name.c_str(), 59);
+	req.debug_name[req.nlen] = 0;
+
+	spec::Header result;
+	virtio_core::Chain chain;
+	co_await virtio_core::scatterGather(virtio_core::hostToDevice, chain, device->_controlQ,
+			arch::dma_buffer_view{nullptr, &req, sizeof(spec::CreateContext)});
+	co_await virtio_core::scatterGather(virtio_core::deviceToHost, chain, device->_controlQ,
+			arch::dma_buffer_view{nullptr, &result, sizeof(spec::Header)});
+	co_await AwaitableRequest{device->_controlQ, chain.front()};
+
+	assert(result.type == spec::resp::noData);
+}
+
+async::result<void> Cmd::create3d(ObjectParams params, std::shared_ptr<GfxDevice::BufferObject> bo, GfxDevice *device) {
+	spec::Create3d req{};
+	req.header.type = spec::cmd::create3d;
+	req.header.flags = 0;
+	req.resource_id = bo->resourceId();
+	req.format = params.format;
+	req.width = params.width;
+	req.height = params.height;
+	req.target = params.target;
+	req.bind = params.bind;
+	req.depth = params.depth;
+	req.array_size = params.array_size;
+	req.last_level = params.last_level;
+	req.nr_samples = params.nr_samples;
+	req.flags = params.flags;
+
+	spec::Header result;
+	virtio_core::Chain chain;
+	co_await virtio_core::scatterGather(virtio_core::hostToDevice, chain, device->_controlQ,
+			arch::dma_buffer_view{nullptr, &req, sizeof(spec::CreateContext)});
+	co_await virtio_core::scatterGather(virtio_core::deviceToHost, chain, device->_controlQ,
+			arch::dma_buffer_view{nullptr, &result, sizeof(spec::Header)});
+	co_await AwaitableRequest{device->_controlQ, chain.front()};
+
+	assert(result.type == spec::resp::noData);
+}
+

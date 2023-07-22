@@ -293,6 +293,52 @@ async::result<void> GfxDevice::ioctl(void *object, uint32_t id, helix_ng::RecvIn
 
 			co_return;
 		}
+		case managarm::fs::DrmIoctlVirtioCreateResourceRequest::message_id: {
+			if(logDrmRequests)
+				std::cout << "gfx/virtio: VIRTIO_CREATE_RESOURCE" << std::endl;
+			auto req = bragi::parse_head_only<managarm::fs::DrmIoctlVirtioCreateResourceRequest>(msg);
+			assert(req);
+
+			co_await createContext(drm_file);
+
+			ObjectParams params{};
+
+			if(_virgl3D) {
+				params.virgl = true;
+				params.target = req->target();
+				params.bind = req->bind();
+				params.depth = req->depth();
+				params.array_size = req->array_size();
+				params.last_level = req->last_level();
+				params.nr_samples = req->nr_samples();
+				params.flags = req->flags();
+			} else {
+				std::cout << "\e[31m" "gfx/virtio: attemping to create a resource on GPU without virgl-3D" << "\e[39m" << std::endl;
+
+				auto [dismiss] = co_await helix_ng::exchangeMsgs(conversation, helix_ng::dismiss());
+				HEL_CHECK(dismiss.error());
+			}
+
+			params.format = req->format();
+			params.width = req->width();
+			params.height = req->height();
+			params.size = req->size();
+			if(!params.size)
+				params.size = 0x1000;
+
+			auto [bo, drm_handle] = co_await createObject(drm_file, std::move(params));
+
+			managarm::fs::DrmIoctlVirtioCreateResourceReply resp;
+			resp.set_res_handle(bo->resourceId());
+			/* TODO: actually assign GEM handles and set it here */
+			resp.set_bo_handle(drm_handle);
+
+			auto [send_resp] = co_await helix_ng::exchangeMsgs(conversation,
+				helix_ng::sendBragiHeadOnly(resp, frg::stl_allocator{})
+			);
+			HEL_CHECK(send_resp.error());
+			co_return;
+		}
 		default: {
 			std::cout << "\e[31m" "core/drm: Unknown virtio_gpu ioctl() message with ID "
 					<< id << "\e[39m" << std::endl;
@@ -399,7 +445,9 @@ async::detached GfxDevice::Configuration::_dispatch(std::unique_ptr<drm_core::At
 
 			co_await fb->getBufferObject()->wait();
 
-			co_await Cmd::transferToHost2d(pps->src_w, pps->src_h, resourceId, _device);
+			if(!fb->getBufferObject()->is3D()) {
+				co_await Cmd::transferToHost2d(pps->src_w, pps->src_h, resourceId, _device);
+			}
 			co_await Cmd::setScanout(pps->src_w, pps->src_h, scanoutId, resourceId, _device);
 			co_await Cmd::resourceFlush(pps->src_w, pps->src_h, resourceId, _device);
 		}
@@ -539,6 +587,13 @@ std::pair<helix::BorrowedDescriptor, uint64_t> GfxDevice::BufferObject::getMemor
 async::detached GfxDevice::BufferObject::_initHw() {
 	co_await Cmd::create2d(getWidth(), getHeight(), _resourceId, _device);
 	co_await Cmd::attachBacking(_resourceId, _mapping.get(), getSize(), _device);
+
+	_jump.raise();
+}
+
+async::result<void> GfxDevice::BufferObject::_initHw3d(ObjectParams params) {
+	co_await Cmd::create3d(std::move(params), static_pointer_cast<GfxDevice::BufferObject>(sharedBufferObject()), _device);
+	co_await Cmd::attachBacking(resourceId(), _mapping.get(), getSize(), _device);
 
 	_jump.raise();
 }

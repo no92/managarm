@@ -1,6 +1,7 @@
 src = [
 	'src/main.cpp',
 	'src/commands.cpp',
+	'src/3d.cpp',
 ]
 
 executable('gfx_virtio', src,

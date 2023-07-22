@@ -15,6 +15,23 @@
 
 #include "spec.hpp"
 
+struct ObjectParams {
+	bool virgl;
+
+	uint32_t size;
+
+	uint32_t format;
+	uint32_t width;
+	uint32_t height;
+	uint32_t target;
+	uint32_t bind;
+	uint32_t depth;
+	uint32_t array_size;
+	uint32_t last_level;
+	uint32_t nr_samples;
+	uint32_t flags;
+};
+
 struct Cmd;
 
 struct GfxDevice final : drm_core::Device, std::enable_shared_from_this<GfxDevice> {
@@ -67,8 +84,13 @@ struct GfxDevice final : drm_core::Device, std::enable_shared_from_this<GfxDevic
 		size_t getSize() override;
 		std::pair<helix::BorrowedDescriptor, uint64_t> getMemory() override;
 		async::detached _initHw();
+		async::result<void> _initHw3d(ObjectParams params);
 		async::result<void> wait();
 		uint32_t resourceId();
+
+		bool is3D() const {
+			return _is3D;
+		}
 
 	private:
 		GfxDevice *_device;
@@ -77,6 +99,7 @@ struct GfxDevice final : drm_core::Device, std::enable_shared_from_this<GfxDevic
 		helix::UniqueDescriptor _memory;
 		helix::Mapping _mapping;
 		async::oneshot_event _jump;
+		const bool _is3D = false;
 	};
 
 	struct Connector : drm_core::Connector {
@@ -114,6 +137,10 @@ struct GfxDevice final : drm_core::Device, std::enable_shared_from_this<GfxDevic
 		GfxDevice *_device;
 	};
 
+	struct FileContext {
+		std::optional<uint32_t> contextId;
+	};
+
 	GfxDevice(std::unique_ptr<virtio_core::Transport> transport);
 
 	async::result<std::unique_ptr<drm_core::Configuration>> initialize();
@@ -131,6 +158,10 @@ struct GfxDevice final : drm_core::Device, std::enable_shared_from_this<GfxDevic
 	async::result<void> ioctl(void *object, uint32_t id, helix_ng::RecvInlineResult, helix::UniqueLane conversation) override;
 
 private:
+	async::result<uint32_t> createContext(drm_core::File *f);
+	async::result<std::pair<std::shared_ptr<GfxDevice::BufferObject>, uint32_t>>
+		createObject(drm_core::File *file, ObjectParams params);
+
 	std::shared_ptr<Crtc> _theCrtcs[16];
 	std::shared_ptr<Encoder> _theEncoders[16];
 	std::shared_ptr<Plane> _thePlanes[16];
@@ -141,6 +172,7 @@ private:
 	virtio_core::Queue *_cursorQ;
 	bool _claimedDevice;
 	id_allocator<uint32_t> _resourceIdAllocator;
+	id_allocator<uint32_t> _contextIdAllocator;
 
 	bool _virgl3D = false;
 };
