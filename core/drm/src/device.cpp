@@ -7,6 +7,16 @@
 // Device
 // ----------------------------------------------------------------
 
+async::result<void> drm_core::Device::ioctl(void *object, uint32_t id, helix_ng::RecvInlineResult, helix::UniqueLane conversation) {
+	std::cout << "core/drm: driver does not support ioctls" << std::endl;
+
+	auto [dismiss] = co_await helix_ng::exchangeMsgs(
+		conversation,
+		helix_ng::dismiss()
+	);
+	HEL_CHECK(dismiss.error());
+}
+
 void drm_core::Device::setupCrtc(drm_core::Crtc *crtc) {
 	crtc->index = _crtcs.size();
 	_crtcs.push_back(crtc);

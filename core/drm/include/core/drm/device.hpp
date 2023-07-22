@@ -1,5 +1,6 @@
 #pragma once
 
+#include <async/result.hpp>
 #include <core/id-allocator.hpp>
 #include <helix/ipc.hpp>
 #include <map>
@@ -36,6 +37,7 @@ public:
 	virtual std::tuple<int, int, int> driverVersion() = 0;
 	//returns name, desc, date
 	virtual std::tuple<std::string, std::string, std::string> driverInfo() = 0;
+	virtual async::result<void> ioctl(void *object, uint32_t id, helix_ng::RecvInlineResult, helix::UniqueLane conversation);
 
 	void setupCrtc(Crtc *crtc);
 	void setupEncoder(Encoder *encoder);

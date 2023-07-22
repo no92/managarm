@@ -746,3 +746,7 @@ head(128):
 	Errors error;
 	string driver_id;
 }
+
+message DrmDriverIoctl 23 {
+head(128):
+}
