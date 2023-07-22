@@ -750,3 +750,13 @@ head(128):
 message DrmDriverIoctl 23 {
 head(128):
 }
+
+message DrmIoctlVirtioGetParamRequest 24 {
+head(128):
+	uint64 param;
+}
+
+message DrmIoctlVirtioGetParamReply 25 {
+head(128):
+	uint64 value;
+}

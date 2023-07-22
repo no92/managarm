@@ -174,3 +174,21 @@ async::result<void> Cmd::attachBacking(uint32_t resourceId, void *ptr, size_t si
 
 	assert(attach_result.type == spec::resp::noData);
 }
+
+async::result<spec::CapsetInfo> Cmd::getCapsetInfo(uint32_t capId, GfxDevice *device) {
+	spec::GetCapsetInfo req{};
+	req.header.type = spec::cmd::getCapsetInfo;
+	req.capset_index = capId;
+
+	spec::CapsetInfo result;
+	virtio_core::Chain chain;
+	co_await virtio_core::scatterGather(virtio_core::hostToDevice, chain, device->_controlQ,
+			arch::dma_buffer_view{nullptr, &req, sizeof(spec::GetCapsetInfo)});
+	co_await virtio_core::scatterGather(virtio_core::deviceToHost, chain, device->_controlQ,
+			arch::dma_buffer_view{nullptr, &result, sizeof(spec::CapsetInfo)});
+	co_await AwaitableRequest{device->_controlQ, chain.front()};
+
+	assert(result.header.type == spec::resp::capsetInfo);
+
+	co_return std::move(result);
+}

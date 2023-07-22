@@ -136,6 +136,12 @@ struct QueueInfo {
 	ptrdiff_t notifyOffset;
 };
 
+struct SharedMemoryInfo {
+	uint8_t bar;
+	uint64_t offset;
+	uint64_t length;
+};
+
 /* This class represents a virtio device.
  * 
  * Usual initialization works as follows:
@@ -148,6 +154,9 @@ struct QueueInfo {
  */
 struct Transport {
 	DeviceSpace space();
+
+	Transport(std::unordered_map<uint8_t, struct SharedMemoryInfo> shmInfo)
+		: _sharedMemoryInfo{std::move(shmInfo)} {};
 
 	virtual ~Transport() = default;
 
@@ -166,6 +175,13 @@ struct Transport {
 	virtual Queue *setupQueue(unsigned int index) = 0;
 
 	virtual void runDevice() = 0;
+
+	const std::unordered_map<uint8_t, struct SharedMemoryInfo> &sharedMemoryInfo() const {
+		return _sharedMemoryInfo;
+	}
+
+private:
+	const std::unordered_map<uint8_t, struct SharedMemoryInfo> _sharedMemoryInfo;
 };
 
 struct DeviceSpace {

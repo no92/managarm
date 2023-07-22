@@ -127,6 +127,20 @@ struct ResourceFlush {
 	uint32_t padding;
 };
 
+struct GetCapsetInfo {
+	Header header;
+	uint32_t capset_index;
+	uint32_t padding;
+};
+
+struct CapsetInfo {
+	Header header;
+	uint32_t capset_id;
+	uint32_t capset_max_version;
+	uint32_t capset_max_size;
+	uint32_t padding;
+};
+
 namespace cfg {
 	inline constexpr arch::scalar_register<uint32_t> numScanouts(8);
 } //namespace cfg

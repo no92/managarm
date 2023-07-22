@@ -6,6 +6,7 @@
 
 #include <core/virtio/core.hpp>
 #include <fafnir/dsl.hpp>
+#include <linux/virtio_pci.h>
 #include <protocols/kernlet/compiler.hpp>
 
 namespace virtio_core {
@@ -124,7 +125,7 @@ private:
 
 LegacyPciTransport::LegacyPciTransport(protocols::hw::Device hw_device,
 		arch::io_space legacy_space, helix::UniqueDescriptor irq)
-: _hwDevice{std::move(hw_device)}, _legacySpace{legacy_space},
+: Transport{{}}, _hwDevice{std::move(hw_device)}, _legacySpace{legacy_space},
 		_irq{std::move(irq)} { }
 
 uint8_t LegacyPciTransport::loadConfig8(size_t offset) {
@@ -278,7 +279,8 @@ struct StandardPciTransport : Transport {
 			Mapping common_mapping, Mapping notify_mapping,
 			Mapping isr_mapping, Mapping device_mapping,
 			unsigned int notify_multiplier, helix::UniqueDescriptor irq,
-			helix::UniqueDescriptor queueMsi);
+			helix::UniqueDescriptor queueMsi,
+			std::unordered_map<uint8_t, struct SharedMemoryInfo> shmInfo);
 
 	protocols::hw::Device &hwDevice() override {
 		return _hwDevice;
@@ -339,8 +341,8 @@ StandardPciTransport::StandardPciTransport(protocols::hw::Device hw_device,
 		Mapping common_mapping, Mapping notify_mapping,
 		Mapping isr_mapping, Mapping device_mapping,
 		unsigned int notify_multiplier, helix::UniqueDescriptor irq,
-		helix::UniqueDescriptor queueMsi)
-: _hwDevice{std::move(hw_device)},
+		helix::UniqueDescriptor queueMsi, std::unordered_map<uint8_t, struct SharedMemoryInfo> shmInfo)
+: Transport{std::move(shmInfo)}, _hwDevice{std::move(hw_device)},
 		_useMsi{useMsi},
 		_commonMapping{std::move(common_mapping)}, _notifyMapping{std::move(notify_mapping)},
 		_isrMapping{std::move(isr_mapping)}, _deviceMapping{std::move(device_mapping)},
@@ -624,11 +626,31 @@ discover(protocols::hw::Device hw_device, DiscoverMode mode) {
 		std::optional<Mapping> device_mapping;
 		unsigned int notify_multiplier = 0;
 
+		std::unordered_map<uint8_t, struct SharedMemoryInfo> sharedMemoryInfo{};
+
 		for(size_t i = 0; i < info.caps.size(); i++) {
 			if(info.caps[i].type != 0x09)
 				continue;
 
 			auto subtype = co_await hw_device.loadPciCapability(i, 3, 1);
+
+			if(subtype == VIRTIO_PCI_CAP_SHARED_MEMORY_CFG) {
+				uint8_t bir = co_await hw_device.loadPciCapability(i, 4, 1);
+				uint8_t id = co_await hw_device.loadPciCapability(i, 5, 1);
+				uint64_t offset = co_await hw_device.loadPciCapability(i, 8, 4);
+				offset |= (static_cast<uint64_t>(co_await hw_device.loadPciCapability(i, 16, 4)) << 32);
+				uint64_t length = co_await hw_device.loadPciCapability(i, 12, 4);
+				length |= (static_cast<uint64_t>(co_await hw_device.loadPciCapability(i, 20, 4)) << 32);
+
+				if(bir >= 6) {
+					continue;
+				}
+
+				sharedMemoryInfo.insert({id, {bir, offset, length}});
+
+				continue;
+			}
+
 			if(subtype != 1 && subtype != 2 && subtype != 3 && subtype != 4)
 				continue;
 
@@ -681,7 +703,7 @@ discover(protocols::hw::Device hw_device, DiscoverMode mode) {
 					info.numMsis,
 					std::move(*common_mapping), std::move(*notify_mapping),
 					std::move(*isr_mapping), std::move(*device_mapping),
-					notify_multiplier, std::move(irq), std::move(queueMsi));
+					notify_multiplier, std::move(irq), std::move(queueMsi), std::move(sharedMemoryInfo));
 		}
 	}
 

@@ -10,6 +10,7 @@
 #include <arch/register.hpp>
 #include <async/result.hpp>
 #include <core/drm/core.hpp>
+#include <drm/virtgpu_drm.h>
 #include <fs.bragi.hpp>
 #include <helix/ipc.hpp>
 #include <linux/virtio_gpu.h>
@@ -207,6 +208,71 @@ async::result<void> GfxDevice::ioctl(void *object, uint32_t id, helix_ng::RecvIn
 	auto drm_file = static_cast<drm_core::File *>(object);
 
 	switch(id) {
+		case managarm::fs::DrmIoctlVirtioGetParamRequest::message_id: {
+			if(logDrmRequests)
+				std::cout << "gfx/virtio: VIRTIO_GET_PARAM" << std::endl;
+			auto req = bragi::parse_head_only<managarm::fs::DrmIoctlVirtioGetParamRequest>(msg);
+			assert(req);
+
+			uint64_t val = 0;
+
+			switch(req->param()) {
+				case VIRTGPU_PARAM_3D_FEATURES: {
+					bool supported = _transport->checkDeviceFeature(VIRTIO_GPU_F_VIRGL);
+					val = supported;
+					break;
+				}
+				case VIRTGPU_PARAM_CAPSET_QUERY_FIX: {
+					val = true;
+					break;
+				}
+				case VIRTGPU_PARAM_RESOURCE_BLOB: {
+					val = _transport->checkDeviceFeature(VIRTIO_GPU_F_RESOURCE_BLOB);
+					break;
+				}
+				case VIRTGPU_PARAM_HOST_VISIBLE: {
+					const auto shm_info = _transport->sharedMemoryInfo();
+					val = shm_info.find(VIRTIO_GPU_SHM_ID_HOST_VISIBLE) != shm_info.end();
+					break;
+				}
+				case VIRTGPU_PARAM_CROSS_DEVICE: {
+					val = _transport->checkDeviceFeature(VIRTIO_GPU_F_RESOURCE_UUID);
+					break;
+				}
+				case VIRTGPU_PARAM_CONTEXT_INIT: {
+					val = _transport->checkDeviceFeature(VIRTIO_GPU_F_CONTEXT_INIT);
+					break;
+				}
+				case VIRTGPU_PARAM_SUPPORTED_CAPSET_IDs: {
+					auto num_capsets = _transport->loadConfig32(12);
+					val = 0;
+
+					for(size_t i = 0; i < num_capsets; i++) {
+						auto capset = co_await Cmd::getCapsetInfo(i, this);
+						val |= (1 << capset.capset_id);
+					}
+					break;
+				}
+				default: {
+					std::cout << "\e[31m" "gfx/virtio: virtio_gpu GetParamRequest with param "
+						<< req->param() << " unsupported\e[39m" << std::endl;
+					auto [dismiss] = co_await helix_ng::exchangeMsgs(conversation, helix_ng::dismiss());
+					HEL_CHECK(dismiss.error());
+					co_return;
+				}
+			}
+
+			managarm::fs::DrmIoctlVirtioGetParamReply resp;
+			resp.set_value(val);
+
+			auto [send_resp] = co_await helix_ng::exchangeMsgs(
+				conversation,
+				helix_ng::sendBragiHeadOnly(resp, frg::stl_allocator{})
+			);
+			HEL_CHECK(send_resp.error());
+
+			co_return;
+		}
 		default: {
 			std::cout << "\e[31m" "core/drm: Unknown virtio_gpu ioctl() message with ID "
 					<< id << "\e[39m" << std::endl;
