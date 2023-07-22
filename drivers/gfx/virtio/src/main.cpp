@@ -339,6 +339,31 @@ async::result<void> GfxDevice::ioctl(void *object, uint32_t id, helix_ng::RecvIn
 			HEL_CHECK(send_resp.error());
 			co_return;
 		}
+		case managarm::fs::DrmIoctlVirtioMapRequest::message_id: {
+			auto req = bragi::parse_head_only<managarm::fs::DrmIoctlVirtioMapRequest>(msg);
+			assert(req);
+
+			if(logDrmRequests)
+				std::cout << "gfx/virtio: VIRTIO_MAP " << req->handle() << std::endl;
+			auto bo = drm_file->resolveHandle(req->handle());
+
+			if(!bo) {
+				std::cout << "\e[31m" "gfx/virtio: BO handle " << req->handle() << " is invalid\e[39m" << std::endl;
+
+				auto [dismiss] = co_await helix_ng::exchangeMsgs(conversation, helix_ng::dismiss());
+				HEL_CHECK(dismiss.error());
+			}
+
+			managarm::fs::DrmIoctlVirtioMapReply resp;
+			resp.set_offset(bo->getMapping());
+
+			auto [send_resp] = co_await helix_ng::exchangeMsgs(conversation,
+				helix_ng::sendBragiHeadOnly(resp, frg::stl_allocator{})
+			);
+			HEL_CHECK(send_resp.error());
+
+			co_return;
+		}
 		default: {
 			std::cout << "\e[31m" "core/drm: Unknown virtio_gpu ioctl() message with ID "
 					<< id << "\e[39m" << std::endl;
