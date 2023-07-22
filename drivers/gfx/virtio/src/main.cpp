@@ -639,6 +639,7 @@ int GfxDevice::Plane::scanoutId() {
 // ----------------------------------------------------------------
 
 GfxDevice::BufferObject::~BufferObject() {
+	_device->uninstallMapping(this);
 	_memory.release();
 }
 
