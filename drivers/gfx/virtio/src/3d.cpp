@@ -40,7 +40,8 @@ async::result<std::pair<std::shared_ptr<GfxDevice::BufferObject>, uint32_t>> Gfx
 
 	assert(params.virgl);
 
-	co_await bo->_initHw3d(std::move(params));
+	uint32_t context_id = co_await createContext(file);
+	co_await bo->_initHw3d(std::move(params), context_id);
 
 	auto drm_handle = file->createHandle(bo);
 

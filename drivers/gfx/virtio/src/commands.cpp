@@ -141,9 +141,9 @@ async::result<void> Cmd::create2d(uint32_t width, uint32_t height, uint32_t reso
 	assert(result.type == spec::resp::noData);
 }
 
-async::result<void> Cmd::attachBacking(uint32_t resourceId, void *ptr, size_t size, GfxDevice *device) {
+async::result<void> Cmd::attachBacking(uint32_t resourceId, void *ptr, size_t size, GfxDevice *device, std::optional<uint32_t> context_id) {
 	assert(ptr);
-	
+
 	std::vector<spec::MemEntry> entries;
 	for(size_t page = 0; page < size; page += 4096) {
 		spec::MemEntry entry;
@@ -173,6 +173,10 @@ async::result<void> Cmd::attachBacking(uint32_t resourceId, void *ptr, size_t si
 	co_await AwaitableRequest{device->_controlQ, attach_chain.front()};
 
 	assert(attach_result.type == spec::resp::noData);
+
+	if(context_id.has_value()) {
+		co_await ctxAttachResource(context_id.value(), resourceId, device);
+	}
 }
 
 async::result<spec::CapsetInfo> Cmd::getCapsetInfo(uint32_t capId, GfxDevice *device) {
@@ -282,3 +286,19 @@ async::result<void> Cmd::cmdSubmit3d(uint32_t context_id, std::vector<uint8_t> c
 	assert(attach_result.type == spec::resp::noData);
 }
 
+async::result<void> Cmd::ctxAttachResource(uint32_t context_id, uint32_t resource_id, GfxDevice *device) {
+	spec::CmdCtxAttachResource req{};
+	req.header.type = spec::cmd::ctxAttachResource;
+	req.header.contextId = context_id;
+	req.handle = resource_id;
+
+	spec::Header attach_result;
+	virtio_core::Chain attach_chain;
+	co_await virtio_core::scatterGather(virtio_core::hostToDevice, attach_chain, device->_controlQ,
+			arch::dma_buffer_view{nullptr, &req, sizeof(spec::CmdCtxAttachResource)});
+	co_await virtio_core::scatterGather(virtio_core::deviceToHost, attach_chain, device->_controlQ,
+			arch::dma_buffer_view{nullptr, &attach_result, sizeof(spec::Header)});
+	co_await AwaitableRequest{device->_controlQ, attach_chain.front()};
+
+	assert(attach_result.type == spec::resp::noData);
+}

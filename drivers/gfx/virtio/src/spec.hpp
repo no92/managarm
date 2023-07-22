@@ -176,6 +176,12 @@ struct CmdSubmit3d {
 	uint32_t padding;
 };
 
+struct CmdCtxAttachResource {
+	Header header;
+	uint32_t handle;
+	uint32_t padding;
+};
+
 namespace cfg {
 	inline constexpr arch::scalar_register<uint32_t> numScanouts(8);
 } //namespace cfg

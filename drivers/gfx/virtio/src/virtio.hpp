@@ -84,7 +84,7 @@ struct GfxDevice final : drm_core::Device, std::enable_shared_from_this<GfxDevic
 		size_t getSize() override;
 		std::pair<helix::BorrowedDescriptor, uint64_t> getMemory() override;
 		async::detached _initHw();
-		async::result<void> _initHw3d(ObjectParams params);
+		async::result<void> _initHw3d(ObjectParams params, uint32_t context_id);
 		async::result<void> wait();
 		uint32_t resourceId();
 

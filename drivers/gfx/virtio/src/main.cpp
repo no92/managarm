@@ -664,14 +664,14 @@ std::pair<helix::BorrowedDescriptor, uint64_t> GfxDevice::BufferObject::getMemor
 
 async::detached GfxDevice::BufferObject::_initHw() {
 	co_await Cmd::create2d(getWidth(), getHeight(), _resourceId, _device);
-	co_await Cmd::attachBacking(_resourceId, _mapping.get(), getSize(), _device);
+	co_await Cmd::attachBacking(_resourceId, _mapping.get(), getSize(), _device, std::nullopt);
 
 	_jump.raise();
 }
 
-async::result<void> GfxDevice::BufferObject::_initHw3d(ObjectParams params) {
+async::result<void> GfxDevice::BufferObject::_initHw3d(ObjectParams params, uint32_t context_id) {
 	co_await Cmd::create3d(std::move(params), static_pointer_cast<GfxDevice::BufferObject>(sharedBufferObject()), _device);
-	co_await Cmd::attachBacking(resourceId(), _mapping.get(), getSize(), _device);
+	co_await Cmd::attachBacking(resourceId(), _mapping.get(), getSize(), _device, context_id);
 
 	_jump.raise();
 }
