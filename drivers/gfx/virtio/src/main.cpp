@@ -364,6 +364,38 @@ async::result<void> GfxDevice::ioctl(void *object, uint32_t id, helix_ng::RecvIn
 
 			co_return;
 		}
+		case managarm::fs::DrmIoctlVirtioExecBufferRequest::message_id: {
+			auto req = bragi::parse_head_only<managarm::fs::DrmIoctlVirtioExecBufferRequest>(msg);
+			assert(req);
+			if(logDrmRequests)
+				std::cout << "gfx/virtio: VIRTIO_EXEC_BUFFER flags=" << req->flags() << std::endl;
+			assert(_virgl3D);
+			assert(!(req->flags() & VIRTGPU_EXECBUF_RING_IDX));
+
+			uint32_t context_id = co_await createContext(drm_file);
+
+			assert(!(req->flags() & VIRTGPU_EXECBUF_FENCE_FD_IN));
+			assert(!(req->flags() & VIRTGPU_EXECBUF_FENCE_FD_OUT));
+
+			std::vector<uint8_t> cmd_buf(req->size());
+
+			auto [recv_buf] = co_await helix_ng::exchangeMsgs(conversation,
+				helix_ng::recvBuffer(cmd_buf.data(), req->size())
+			);
+			HEL_CHECK(recv_buf.error());
+
+			co_await Cmd::cmdSubmit3d(context_id, std::move(cmd_buf), this);
+
+			managarm::fs::DrmIoctlVirtioExecBufferReply resp;
+			resp.set_error(managarm::fs::Errors::SUCCESS);
+
+			auto [send_resp] = co_await helix_ng::exchangeMsgs(conversation,
+				helix_ng::sendBragiHeadOnly(resp, frg::stl_allocator{})
+			);
+			HEL_CHECK(send_resp.error());
+
+			co_return;
+		}
 		default: {
 			std::cout << "\e[31m" "core/drm: Unknown virtio_gpu ioctl() message with ID "
 					<< id << "\e[39m" << std::endl;

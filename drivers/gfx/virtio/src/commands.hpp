@@ -15,4 +15,5 @@ struct Cmd {
 	static async::result<std::vector<uint8_t>> getCapset(uint32_t cap_id, uint32_t cap_version, uint32_t max_size, GfxDevice *device);
 	static async::result<void> createContext(uint32_t context_id, uint32_t context_init, std::string debug_name, GfxDevice *device);
 	static async::result<void> create3d(ObjectParams params, std::shared_ptr<GfxDevice::BufferObject> bo, GfxDevice *device);
+	static async::result<void> cmdSubmit3d(uint32_t context_id, std::vector<uint8_t> cmd_buf, GfxDevice *device);
 };

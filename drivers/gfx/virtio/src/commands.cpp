@@ -262,3 +262,23 @@ async::result<void> Cmd::create3d(ObjectParams params, std::shared_ptr<GfxDevice
 	assert(result.type == spec::resp::noData);
 }
 
+async::result<void> Cmd::cmdSubmit3d(uint32_t context_id, std::vector<uint8_t> cmd_buf, GfxDevice *device) {
+	spec::CmdSubmit3d req{};
+	req.header.type = spec::cmd::submit3d;
+	req.header.contextId = context_id;
+	req.header.flags = 0;
+	req.size = cmd_buf.size();
+
+	spec::Header attach_result;
+	virtio_core::Chain attach_chain;
+	co_await virtio_core::scatterGather(virtio_core::hostToDevice, attach_chain, device->_controlQ,
+			arch::dma_buffer_view{nullptr, &req, sizeof(spec::CmdSubmit3d)});
+	co_await virtio_core::scatterGather(virtio_core::hostToDevice, attach_chain, device->_controlQ,
+			arch::dma_buffer_view{nullptr, cmd_buf.data(), cmd_buf.size()});
+	co_await virtio_core::scatterGather(virtio_core::deviceToHost, attach_chain, device->_controlQ,
+			arch::dma_buffer_view{nullptr, &attach_result, sizeof(spec::Header)});
+	co_await AwaitableRequest{device->_controlQ, attach_chain.front()};
+
+	assert(attach_result.type == spec::resp::noData);
+}
+
