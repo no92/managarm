@@ -16,6 +16,7 @@
 #include <protocols/mbus/client.hpp>
 #include <libdrm/drm_fourcc.h>
 
+#include "core/drm/mode-object.hpp"
 #include "fs.bragi.hpp"
 
 #include "core/drm/core.hpp"
@@ -63,12 +64,14 @@ uint32_t drm_core::File::createHandle(std::shared_ptr<BufferObject> bo) {
 	if(logDrmRequests)
 		std::cout << "core/drm: createHandle for BufferObject " << bo.get() << " -> handle " << handle << std::endl;
 
+	return handle;
+}
+
+void drm_core::File::mapHandle(std::shared_ptr<BufferObject> bo) {
 	auto [boMemory, boOffset] = bo->getMemory();
 	HEL_CHECK(helAlterMemoryIndirection(_memory.getHandle(),
 			bo->getMapping() >> 32, boMemory.getHandle(),
 			boOffset, bo->getSize()));
-
-	return handle;
 }
 
 drm_core::BufferObject *drm_core::File::resolveHandle(uint32_t handle) {
@@ -97,6 +100,8 @@ bool drm_core::File::exportBufferObject(uint32_t handle, std::array<char, 16> cr
 	if(!bo)
 		return false;
 	auto buffer = bo->sharedBufferObject();
+
+	buffer->refGet();
 
 	_device->registerBufferObject(buffer, creds);
 	return true;

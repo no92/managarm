@@ -33,10 +33,12 @@ async::result<std::pair<std::shared_ptr<GfxDevice::BufferObject>, uint32_t>> Gfx
 	HEL_CHECK(helAllocateMemory(size, 0, nullptr, &handle));
 
 	auto bo = std::make_shared<BufferObject>(this, _resourceIdAllocator.allocate(), size,
-			helix::UniqueDescriptor(handle), params.width, params.height, true);
+			helix::UniqueDescriptor(handle), params.width, params.height);
 
 	auto mapping = installMapping(bo.get());
 	bo->setupMapping(mapping);
+
+	bo->refGet();
 
 	assert(params.virgl);
 

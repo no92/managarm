@@ -35,10 +35,22 @@ public:
 
 	uint32_t getWidth();
 	uint32_t getHeight();
+
+	void refGet() {
+		++_refcount;
+	}
+
+	size_t refPut() {
+		assert(_refcount > 0);
+		return --_refcount;
+	}
+
 private:
 	uint64_t _mapping = -1;
 	uint32_t _width;
 	uint32_t _height;
+
+	std::atomic<size_t> _refcount;
 };
 
 struct Blob {

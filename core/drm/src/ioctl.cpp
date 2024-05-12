@@ -415,6 +415,7 @@ drm_core::File::ioctl(void *object, uint32_t id, helix_ng::RecvInlineResult msg,
 			auto bo = self->resolveHandle(req->drm_handle());
 			assert(bo);
 			auto buffer = bo->sharedBufferObject();
+			self->mapHandle(buffer);
 
 			resp.set_drm_offset(buffer->getMapping());
 			resp.set_error(managarm::fs::Errors::SUCCESS);
@@ -1149,7 +1150,22 @@ drm_core::File::ioctl(void *object, uint32_t id, helix_ng::RecvInlineResult msg,
 		if(logDrmRequests)
 			std::cout << "core/drm: DRM_IOCTL_GEM_CLOSE(" << req->handle() << ")" << std::endl;
 
-		self->_buffers.erase(req->handle());
+		auto it = self->_buffers.find(req->handle());
+		if(it == self->_buffers.end()) {
+			std::cout << "\e[31m" "core/drm: attempt to close non-existant GEM handle "
+				<< req->handle() << "\e[39m" << std::endl;
+
+			auto [dismiss] = co_await helix_ng::exchangeMsgs(
+				conversation, helix_ng::dismiss());
+			HEL_CHECK(dismiss.error());
+			co_return;
+		}
+
+		auto bo = it->second;
+		assert(bo);
+
+		if(!bo->refPut())
+			self->_buffers.erase(req->handle());
 
 		auto [send_resp] = co_await helix_ng::exchangeMsgs(
 			conversation,

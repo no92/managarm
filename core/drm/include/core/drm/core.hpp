@@ -68,6 +68,18 @@ struct File {
 	const std::vector<std::shared_ptr<FrameBuffer>> &getFrameBuffers();
 
 	/**
+	 * Create a DRM handle for a BufferObject
+	 *
+	 * As the DRM handles are fd-local, these reside in this class. Registering BOs for handles
+	 * is usually done at creation or import for both dumb and GEM buffers. This ID is used as the
+	 * GEM handle, which AFAICT is also how Linux does it (shared IDs for mode objects and
+	 * GEM buffers).
+	 *
+	 * @param bo BufferObject to be set up for mapping
+	 * @returns the DRM handle for the BO on this fd
+	 */
+	uint32_t createHandle(std::shared_ptr<BufferObject> bo);
+	/**
 	 * Prepare a BufferObject to be mmap'ed by userspace.
 	 *
 	 * mmap()ing buffers works by providing a (fake) offset that can be used on the
@@ -75,9 +87,8 @@ struct File {
 	 * Obviously, this offset is only valid on the DRM fd that is was set up on.
 	 *
 	 * @param bo BufferObject to be set up for mapping
-	 * @return uint32_t The offset to be used to mmap the BufferObject
 	 */
-	uint32_t createHandle(std::shared_ptr<BufferObject> bo);
+	void mapHandle(std::shared_ptr<BufferObject> bo);
 	BufferObject *resolveHandle(uint32_t handle);
 	std::optional<uint32_t> getHandle(std::shared_ptr<drm_core::BufferObject> bo);
 

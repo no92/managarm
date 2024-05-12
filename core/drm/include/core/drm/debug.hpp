@@ -1,3 +1,3 @@
 #pragma once
 
-constexpr bool logDrmRequests = false;
+constexpr bool logDrmRequests = true;

@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <memory>
+#include <unordered_map>
 #include <vector>
 
 #include <arch/dma_structs.hpp>
@@ -143,7 +144,7 @@ struct SharedMemoryInfo {
 };
 
 /* This class represents a virtio device.
- * 
+ *
  * Usual initialization works as follows:
  * - Call discover() to obtain a transport.
  * - Negotiate features via Transport::checkDeviceFeature() / acknowledgeDriverFeature().

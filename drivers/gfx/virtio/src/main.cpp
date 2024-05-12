@@ -9,7 +9,11 @@
 #include <arch/bits.hpp>
 #include <arch/register.hpp>
 #include <async/result.hpp>
+#include <bragi/helpers-std.hpp>
 #include <core/drm/core.hpp>
+#include <core/drm/debug.hpp>
+#include <core/drm/mode-object.hpp>
+#include <core/drm/property.hpp>
 #include <drm/virtgpu_drm.h>
 #include <fs.bragi.hpp>
 #include <helix/ipc.hpp>
@@ -294,8 +298,6 @@ async::result<void> GfxDevice::ioctl(void *object, uint32_t id, helix_ng::RecvIn
 			co_return;
 		}
 		case managarm::fs::DrmIoctlVirtioCreateResourceRequest::message_id: {
-			if(logDrmRequests)
-				std::cout << "gfx/virtio: VIRTIO_CREATE_RESOURCE" << std::endl;
 			auto req = bragi::parse_head_only<managarm::fs::DrmIoctlVirtioCreateResourceRequest>(msg);
 			assert(req);
 
@@ -333,6 +335,9 @@ async::result<void> GfxDevice::ioctl(void *object, uint32_t id, helix_ng::RecvIn
 			/* TODO: actually assign GEM handles and set it here */
 			resp.set_bo_handle(drm_handle);
 
+			if(logDrmRequests)
+				std::cout << "gfx/virtio: VIRTIO_CREATE_RESOURCE " << drm_handle << " (resource " << bo->resourceId() << ")" << std::endl;
+
 			auto [send_resp] = co_await helix_ng::exchangeMsgs(conversation,
 				helix_ng::sendBragiHeadOnly(resp, frg::stl_allocator{})
 			);
@@ -353,6 +358,8 @@ async::result<void> GfxDevice::ioctl(void *object, uint32_t id, helix_ng::RecvIn
 				auto [dismiss] = co_await helix_ng::exchangeMsgs(conversation, helix_ng::dismiss());
 				HEL_CHECK(dismiss.error());
 			}
+
+			drm_file->mapHandle(bo->sharedBufferObject());
 
 			managarm::fs::DrmIoctlVirtioMapReply resp;
 			resp.set_offset(bo->getMapping());
@@ -383,6 +390,12 @@ async::result<void> GfxDevice::ioctl(void *object, uint32_t id, helix_ng::RecvIn
 				helix_ng::recvBuffer(cmd_buf.data(), req->size())
 			);
 			HEL_CHECK(recv_buf.error());
+
+			for(auto handle: req->bo_handles()) {
+				auto b = drm_file->resolveHandle(handle);
+				auto bo = static_cast<GfxDevice::BufferObject *>(b);
+				printf("\tBO handle %u = resource ID %u\n", handle, bo->resourceId());
+			}
 
 			co_await Cmd::cmdSubmit3d(context_id, std::move(cmd_buf), this);
 
@@ -523,10 +536,10 @@ async::detached GfxDevice::Configuration::_dispatch(std::unique_ptr<drm_core::At
 
 			co_await fb->getBufferObject()->wait();
 
+			co_await Cmd::setScanout(pps->src_w, pps->src_h, scanoutId, resourceId, _device);
 			if(!fb->getBufferObject()->is3D()) {
 				co_await Cmd::transferToHost2d(pps->src_w, pps->src_h, resourceId, _device);
 			}
-			co_await Cmd::setScanout(pps->src_w, pps->src_h, scanoutId, resourceId, _device);
 			co_await Cmd::resourceFlush(pps->src_w, pps->src_h, resourceId, _device);
 		}
 	}
@@ -542,10 +555,10 @@ async::detached GfxDevice::Configuration::_dispatch(std::unique_ptr<drm_core::At
 
 			co_await fb->getBufferObject()->wait();
 
-			// TODO: if(!fb->getBufferObject()->is3D())
+			co_await Cmd::setScanout(ps->src_w, ps->src_h, static_pointer_cast<GfxDevice::Plane>(ps->plane)->scanoutId(), resourceId, _device);
+			if(!fb->getBufferObject()->is3D())
 				co_await Cmd::transferToHost2d(ps->src_w, ps->src_h, resourceId, _device);
 
-			co_await Cmd::setScanout(ps->src_w, ps->src_h, static_pointer_cast<GfxDevice::Plane>(ps->plane)->scanoutId(), resourceId, _device);
 			co_await Cmd::resourceFlush(ps->src_w, ps->src_h, resourceId, _device);
 		}
 	}

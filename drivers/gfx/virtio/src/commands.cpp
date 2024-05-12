@@ -56,6 +56,8 @@ async::result<void> Cmd::transferToHost2d(uint32_t width, uint32_t height, uint3
 }
 
 async::result<void> Cmd::setScanout(uint32_t width, uint32_t height, uint32_t scanoutId, uint32_t resourceId, GfxDevice *device) {
+	printf("gfx/virtio: setScanout %ux%u for scanout %u with resource %u\n", width, height, scanoutId, resourceId);
+
 	spec::SetScanout scanout;
 	memset(&scanout, 0, sizeof(spec::SetScanout));
 	scanout.header.type = spec::cmd::setScanout;
@@ -239,10 +241,13 @@ async::result<void> Cmd::createContext(uint32_t context_id, uint32_t context_ini
 	assert(result.type == spec::resp::noData);
 }
 
+size_t fence_id = 1;
+
 async::result<void> Cmd::create3d(ObjectParams params, std::shared_ptr<GfxDevice::BufferObject> bo, GfxDevice *device) {
 	spec::Create3d req{};
 	req.header.type = spec::cmd::create3d;
-	req.header.flags = 0;
+	req.header.flags = VIRTIO_GPU_FLAG_FENCE;
+	req.header.fenceId = fence_id++;
 	req.resource_id = bo->resourceId();
 	req.format = params.format;
 	req.width = params.width;
@@ -270,7 +275,8 @@ async::result<void> Cmd::cmdSubmit3d(uint32_t context_id, std::vector<uint8_t> c
 	spec::CmdSubmit3d req{};
 	req.header.type = spec::cmd::submit3d;
 	req.header.contextId = context_id;
-	req.header.flags = 0;
+	req.header.flags = VIRTIO_GPU_FLAG_FENCE;
+	req.header.fenceId = fence_id++;
 	req.size = cmd_buf.size();
 
 	spec::Header attach_result;
