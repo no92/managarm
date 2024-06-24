@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <optional>
 #include <functional>
+#include <format>
 #include <memory>
 
 #include <arch/dma_pool.hpp>
@@ -819,22 +820,35 @@ Controller::Device::useConfiguration(int number) {
 	co_return proto::Configuration{std::make_shared<Controller::ConfigurationState>(_controller, shared_from_this(), number)};
 }
 
-async::result<frg::expected<proto::UsbError>>
+async::result<frg::expected<proto::UsbError, size_t>>
 Controller::Device::transfer(proto::ControlTransfer info) {
 	ProducerRing::Completion ev;
+	ProducerRing::Completion data_ev;
 
 	Transfer::buildControlChain([&] (RawTrb trb, bool last) {
-		if (last)
+		ProducerRing::Completion *event_to_use = nullptr;
+
+		if (last) {
 			trb.val[3] |= 1 << 5; // IOC
-		pushRawTransfer(0, trb, last ? &ev : nullptr);
+			event_to_use = &ev;
+		} else if(!last && trb.type() == TrbType::dataStage) {
+			event_to_use = &data_ev;
+		}
+		pushRawTransfer(0, trb, event_to_use);
 	}, *info.setup.data(), info.buffer, info.flags == proto::kXferToHost, _maxPacketSizes[0]);
 
 	submit(1);
 
+	async::cancellation_event ct;
 	co_await ev.completion.wait();
+	ct.cancel();
+	auto valid = co_await data_ev.completion.wait(ct);
 
 	FRG_CO_TRY(completionToError(ev.event));
-	co_return frg::success;
+	if(valid)
+		co_return info.buffer.size() - data_ev.event.transferLen;
+	else
+		co_return frg::success;
 }
 
 void Controller::Device::submit(int endpoint) {
@@ -1119,7 +1133,7 @@ Controller::EndpointState::EndpointState(Controller *,
 : _device{device}, _endpoint{endpoint}, _type{type} {
 }
 
-async::result<frg::expected<proto::UsbError>>
+async::result<frg::expected<proto::UsbError, size_t>>
 Controller::EndpointState::transfer(proto::ControlTransfer info) {
 	int endpointId = _endpoint * 2;
 

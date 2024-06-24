@@ -44,6 +44,7 @@ Event Event::fromRawTrb(RawTrb trb) {
 			printf("xhci: Unexpected event 0x%02x in Event::fromRawTrb, ignoring...\n",
 					static_cast<uint32_t>(ev.type));
 	}
+	ev.printInfo();
 
 	return ev;
 }

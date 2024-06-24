@@ -172,7 +172,7 @@ private:
 		async::result<frg::expected<proto::UsbError, std::string>> deviceDescriptor() override;
 		async::result<frg::expected<proto::UsbError, std::string>> configurationDescriptor(uint8_t configuration = 0) override;
 		async::result<frg::expected<proto::UsbError, proto::Configuration>> useConfiguration(int number) override;
-		async::result<frg::expected<proto::UsbError>> transfer(proto::ControlTransfer info) override;
+		async::result<frg::expected<proto::UsbError, size_t>> transfer(proto::ControlTransfer info) override;
 
 		void submit(int endpoint);
 		void pushRawTransfer(int endpoint, RawTrb cmd, ProducerRing::Completion *ev = nullptr);
@@ -255,7 +255,7 @@ private:
 	struct EndpointState final : proto::EndpointData {
 		explicit EndpointState(Controller *controller, std::shared_ptr<Device> device, int endpoint, proto::PipeType type);
 
-		async::result<frg::expected<proto::UsbError>> transfer(proto::ControlTransfer info) override;
+		async::result<frg::expected<proto::UsbError, size_t>> transfer(proto::ControlTransfer info) override;
 		async::result<frg::expected<proto::UsbError, size_t>> transfer(proto::InterruptTransfer info) override;
 		async::result<frg::expected<proto::UsbError, size_t>> transfer(proto::BulkTransfer info) override;
 

@@ -134,7 +134,7 @@ public:
 			bool lazy_notification);
 
 
-	async::result<frg::expected<proto::UsbError>>
+	async::result<frg::expected<proto::UsbError, size_t>>
 	transfer(int address, int pipe, proto::ControlTransfer info);
 
 	async::result<frg::expected<proto::UsbError, size_t>>
@@ -205,7 +205,7 @@ struct DeviceState final : proto::DeviceData {
 	async::result<frg::expected<proto::UsbError, std::string>> deviceDescriptor() override;
 	async::result<frg::expected<proto::UsbError, std::string>> configurationDescriptor(uint8_t configuration) override;
 	async::result<frg::expected<proto::UsbError, proto::Configuration>> useConfiguration(int number) override;
-	async::result<frg::expected<proto::UsbError>> transfer(proto::ControlTransfer info) override;
+	async::result<frg::expected<proto::UsbError, size_t>> transfer(proto::ControlTransfer info) override;
 
 private:
 	std::shared_ptr<Controller> _controller;
@@ -254,7 +254,7 @@ struct EndpointState final : proto::EndpointData {
 	explicit EndpointState(std::shared_ptr<Controller> controller,
 			int device, proto::PipeType type, int endpoint);
 
-	async::result<frg::expected<proto::UsbError>> transfer(proto::ControlTransfer info) override;
+	async::result<frg::expected<proto::UsbError, size_t>> transfer(proto::ControlTransfer info) override;
 	async::result<frg::expected<proto::UsbError, size_t>> transfer(proto::InterruptTransfer info) override;
 	async::result<frg::expected<proto::UsbError, size_t>> transfer(proto::BulkTransfer info) override;
 

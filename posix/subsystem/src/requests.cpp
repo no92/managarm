@@ -2608,6 +2608,9 @@ async::result<void> serveRequests(std::shared_ptr<Process> self,
 					mapIt->second = POLLNVAL;
 					continue;
 				}
+
+				std::cout << std::format("KANKER: poll fd {} ", req.fds(i)) << file->structName() << "\n";
+
 				auto locked = file->weakFile().lock();
 				assert(locked);
 
@@ -2655,19 +2658,41 @@ async::result<void> serveRequests(std::shared_ptr<Process> self,
 				co_await timer.retire();
 			}
 
+			std::cout << std::format("EPOLL_CALL returns:\n");
 			// Assigned the returned events to each FD.
 			for(size_t j = 0; j < k; ++j) {
 				auto it = fdsToEvents.find(events[j].data.fd);
 				assert(it != fdsToEvents.end());
+				std::cout << std::format("\tfd {}:", events[j].data.fd);
+
 
 				// Translate EPOLL events back to POLL events.
 				assert(!it->second);
-				if(events[j].events & EPOLLIN) it->second |= POLLIN;
-				if(events[j].events & EPOLLOUT) it->second |= POLLOUT;
-				if(events[j].events & EPOLLPRI) it->second |= POLLPRI;
-				if(events[j].events & EPOLLRDHUP) it->second |= POLLRDHUP;
-				if(events[j].events & EPOLLERR) it->second |= POLLERR;
-				if(events[j].events & EPOLLHUP) it->second |= POLLHUP;
+				if(events[j].events & EPOLLIN) {
+					it->second |= POLLIN;
+					std::cout << " POLLIN";
+				}
+				if(events[j].events & EPOLLOUT) {
+					it->second |= POLLOUT;
+					std::cout << " POLLOUT";
+				}
+				if(events[j].events & EPOLLPRI) {
+					it->second |= POLLPRI;
+					std::cout << " POLLPRI";
+				}
+				if(events[j].events & EPOLLRDHUP) {
+					it->second |= POLLRDHUP;
+					std::cout << " POLLRDHUP";
+				}
+				if(events[j].events & EPOLLERR) {
+					it->second |= POLLERR;
+					std::cout << " POLLERR";
+				}
+				if(events[j].events & EPOLLHUP) {
+					it->second |= POLLHUP;
+					std::cout << " POLLHUP";
+				}
+				std::cout << "\n";
 			}
 
 			managarm::posix::SvrResponse resp;
@@ -3355,7 +3380,7 @@ async::result<void> serveRequests(std::shared_ptr<Process> self,
 			HEL_CHECK(recv_tail.error());
 
 			auto req = bragi::parse_head_tail<managarm::posix::SetAffinityRequest>(recv_head, tail);
-			
+
 			if (!req) {
 				std::cout << "posix: Rejecting request due to decoding failure" << std::endl;
 				break;
@@ -3397,7 +3422,7 @@ async::result<void> serveRequests(std::shared_ptr<Process> self,
 			HEL_CHECK(sendResp.error());
 		}else if(preamble.id() == managarm::posix::GetAffinityRequest::message_id) {
 			auto req = bragi::parse_head_only<managarm::posix::GetAffinityRequest>(recv_head);
-			
+
 			if (!req) {
 				std::cout << "posix: Rejecting request due to decoding failure" << std::endl;
 				break;

@@ -112,6 +112,19 @@ async::result<protocols::svrctl::Error> doBindUsb(mbus_ng::Entity baseEntity) {
 						usb_info.ncm = true;
 						break;
 					}
+					case CdcSubType::Mbim: {
+						auto hdr = reinterpret_cast<protocols::usb::CdcMbim *>(descriptor);
+						printf("netserver: MBIM %x\n", hdr->bcdMBIMVersion);
+						usb_info.mbim = true;
+						if(!usb_info.control_if)
+							usb_info.control_if = info.interfaceNumber;
+						break;
+					}
+					case CdcSubType::MbimExtended: {
+						auto hdr = reinterpret_cast<protocols::usb::CdcMbimExtended *>(descriptor);
+						printf("netserver: MBIM Extended MTU %u\n", hdr->wMTU);
+						break;
+					}
 					default: {
 						std::cout << std::format("netserver: unhandled Function Descriptor SubType {}", uint8_t(desc->subtype)) << std::endl;
 						break;
@@ -154,7 +167,7 @@ async::result<protocols::svrctl::Error> doBindUsb(mbus_ng::Entity baseEntity) {
 			}
 		});
 
-		if(usb_info.valid && usb_info.iMACAddress && usb_info.control_if && usb_info.data_if) {
+		if(usb_info.valid && usb_info.control_if && usb_info.data_if) {
 			usb_info.configuration_index = configuration;
 			usb_info.chosen_configuration = reinterpret_cast<protocols::usb::ConfigDescriptor *>(raw_descs.data())->configValue;
 			matched_usb_info = std::move(usb_info);
@@ -166,14 +179,17 @@ async::result<protocols::svrctl::Error> doBindUsb(mbus_ng::Entity baseEntity) {
 	|| matched_usb_info->subclass == protocols::usb::cdc_subclass::reserved
 	|| !matched_usb_info->valid
 	|| !matched_usb_info->chosen_configuration
-	|| !matched_usb_info->iMACAddress
+	// || !matched_usb_info->iMACAddress
 	|| !matched_usb_info->control_if
 	|| !matched_usb_info->data_if) {
 		std::cout << std::format("netserver: skipping device with mbus ID {}", baseEntity.id()) << std::endl;
 		co_return protocols::svrctl::Error::deviceNotSupported;
 	}
 
-	auto str = (co_await dev.getString(*matched_usb_info->iMACAddress)).value();
+	std::string str = "000000000000";
+
+	if(matched_usb_info->iMACAddress)
+		str = (co_await dev.getString(*matched_usb_info->iMACAddress)).value();
 
 	auto decodeHexString = [](char c) -> uint8_t {
 		if(c >= 'A' && c <= 'F')

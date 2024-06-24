@@ -119,7 +119,7 @@ async::result<frg::expected<proto::UsbError, proto::Configuration>> DeviceState:
 			_device, number)};
 }
 
-async::result<frg::expected<proto::UsbError>> DeviceState::transfer(proto::ControlTransfer info) {
+async::result<frg::expected<proto::UsbError, size_t>> DeviceState::transfer(proto::ControlTransfer info) {
 	return _controller->transfer(_device, 0, info);
 }
 
@@ -162,7 +162,7 @@ EndpointState::EndpointState(std::shared_ptr<Controller> controller,
 		int device, proto::PipeType type, int endpoint)
 : _controller{std::move(controller)}, _device(device), _type(type), _endpoint(endpoint) { }
 
-async::result<frg::expected<proto::UsbError>> EndpointState::transfer(proto::ControlTransfer info) {
+async::result<frg::expected<proto::UsbError, size_t>> EndpointState::transfer(proto::ControlTransfer info) {
 	(void)info;
 	assert(!"FIXME: Implement this");
 	__builtin_unreachable();
@@ -688,14 +688,14 @@ void Controller::QueueEntity::setAddress(int address) {
 // Transfer functions.
 // ------------------------------------------------------------------------
 
-async::result<frg::expected<proto::UsbError>>
+async::result<frg::expected<proto::UsbError, size_t>>
 Controller::transfer(int address, int pipe, proto::ControlTransfer info) {
 	auto device = &_activeDevices[address];
 	auto endpoint = &device->controlStates[pipe];
 
 	auto transaction = _buildControl(info.flags,
 			info.setup, info.buffer,  endpoint->maxPacketSize);
-	auto future = transaction->voidPromise.get_future();
+	auto future = transaction->promise.get_future();
 	_linkTransaction(endpoint->queueEntity, transaction);
 	co_return *(co_await future.get());
 }

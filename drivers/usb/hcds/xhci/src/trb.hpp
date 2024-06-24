@@ -11,11 +11,6 @@
 
 #include <protocols/usb/usb.hpp>
 
-struct RawTrb {
-	uint32_t val[4];
-};
-static_assert(sizeof(RawTrb) == 16, "invalid trb size");
-
 enum class TrbType : uint8_t {
 	reserved = 0,
 
@@ -59,10 +54,19 @@ enum class TrbType : uint8_t {
 	mfindexWrapEvent
 };
 
+struct RawTrb {
+	uint32_t val[4];
+
+	TrbType type() {
+		return TrbType((val[3] & 0xFC00) >> 10);
+	}
+};
+static_assert(sizeof(RawTrb) == 16, "invalid trb size");
+
 namespace Command {
 	constexpr RawTrb enableSlot(uint8_t slotType) {
 		return RawTrb{
-			0, 0, 0, 
+			0, 0, 0,
 			(uint32_t{slotType} << 16) | (static_cast<uint32_t>(
 					TrbType::enableSlotCommand) << 10)
 		};
