@@ -800,7 +800,7 @@ Controller::Device::useConfiguration(int number) {
 	co_return proto::Configuration{std::make_shared<Controller::ConfigurationState>(shared_from_this(), number)};
 }
 
-async::result<frg::expected<proto::UsbError>>
+async::result<frg::expected<proto::UsbError, size_t>>
 Controller::Device::transfer(proto::ControlTransfer info) {
 	co_return co_await _endpoints[0]->transfer(info);
 }
@@ -1088,7 +1088,7 @@ Controller::EndpointState::EndpointState(Device *device, int endpointId, proto::
 	_transferRing{device->controller()} {
 }
 
-async::result<frg::expected<proto::UsbError>>
+async::result<frg::expected<proto::UsbError, size_t>>
 Controller::EndpointState::transfer(proto::ControlTransfer info) {
 	ProducerRing::Transaction tx;
 
@@ -1112,7 +1112,7 @@ Controller::EndpointState::transfer(proto::ControlTransfer info) {
 	}
 
 	// TODO(qookie): Report the residue to the user
-	(void)FRG_CO_TRY(maybeResidue);
+	co_return info.buffer.size() - FRG_CO_TRY(maybeResidue);
 
 	co_return frg::success;
 }
