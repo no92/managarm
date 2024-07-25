@@ -11,6 +11,7 @@
 #include "../../drvcore.hpp"
 #include "../../util.hpp"
 #include "../pci.hpp"
+#include "drivers.hpp"
 #include "attributes.hpp"
 #include "devices.hpp"
 #include "root-hub.hpp"
@@ -25,7 +26,7 @@ id_allocator<uint64_t> usbControllerAllocator;
 
 namespace usb_subsystem {
 
-drvcore::BusSubsystem *sysfsSubsystem;
+std::shared_ptr<drvcore::BusSubsystem> sysfsSubsystem;
 
 std::unordered_map<int, std::shared_ptr<drvcore::Device>> mbusMap;
 
@@ -315,6 +316,24 @@ async::result<void> bindDevice(mbus_ng::Entity entity, mbus_ng::Properties prope
 	mbusMap.insert({entity.id(), device});
 }
 
+std::unordered_map<std::string, std::shared_ptr<drvcore::BusDriver>> interface_driver_list;
+
+std::shared_ptr<drvcore::BusDriver> getInterfaceDriver(std::string name) {
+	if(interface_driver_list.contains(name)) {
+		return interface_driver_list.at(name);
+	}
+
+	if(name == "cdc_ncm") {
+		auto ncmDriver = std::make_shared<CdcNcmDriver>(sysfsSubsystem, name);
+		ncmDriver->addObject();
+		interface_driver_list.insert({name, ncmDriver});
+	} else {
+		assert(!"unsupported USB interface driver");
+	}
+
+	return interface_driver_list.at(name);
+}
+
 async::detached observeDevicesOnController(mbus_ng::EntityId controllerId) {
 	auto usbDeviceFilter = mbus_ng::Conjunction({
 		mbus_ng::EqualsFilter{"unix.subsystem", "usb"},
@@ -327,12 +346,41 @@ async::detached observeDevicesOnController(mbus_ng::EntityId controllerId) {
 		auto [_, events] = (co_await enumerator.nextEvents()).unwrap();
 
 		for (auto &event : events) {
-			if (event.type != mbus_ng::EnumerationEvent::Type::created)
-				continue;
-
 			auto entity = co_await mbus_ng::Instance::global().getEntity(event.id);
 
-			co_await bindDevice(std::move(entity), std::move(event.properties));
+			if (event.type == mbus_ng::EnumerationEvent::Type::created) {
+				co_await bindDevice(std::move(entity), std::move(event.properties));
+			} else if (event.type == mbus_ng::EnumerationEvent::Type::propertiesChanged) {
+				auto device = mbusMap.find(entity.id());
+				assert(device != mbusMap.end());
+
+				auto if_drivers = event.properties.find("usb.interface_drivers");
+				if(if_drivers != event.properties.end()) {
+					auto drivers_list = std::get<mbus_ng::ArrayItem>(if_drivers->second).items;
+
+					for(auto &driver_info : drivers_list) {
+						auto info = std::get<mbus_ng::ArrayItem>(driver_info).items;
+						auto if_num = std::get<mbus_ng::StringItem>(info.at(0)).value;
+						auto driver_name = std::get<mbus_ng::StringItem>(info.at(1)).value;
+
+						auto dev = std::static_pointer_cast<UsbDevice>(device->second);
+						auto config_val = (co_await dev->device().currentConfigurationValue()).value();
+						auto dev_if = std::find_if(
+							dev->interfaces.begin(), dev->interfaces.end(),
+							[&](const auto &intf) {
+								return std::format("{}.{}", config_val, intf->interfaceNumber) == if_num;
+							}
+						);
+
+						if(dev_if != dev->interfaces.end()) {
+							dev_if->get()->createSymlink("driver", getInterfaceDriver(driver_name));
+						}
+
+					}
+				}
+			} else {
+				continue;
+			}
 		}
 	}
 }
@@ -340,7 +388,7 @@ async::detached observeDevicesOnController(mbus_ng::EntityId controllerId) {
 async::detached run() {
 	usbControllerAllocator.use_range();
 
-	sysfsSubsystem = new drvcore::BusSubsystem{"usb"};
+	sysfsSubsystem = std::make_shared<drvcore::BusSubsystem>("usb");
 
 	auto usbControllerFilter = mbus_ng::Conjunction({
 		mbus_ng::EqualsFilter{"generic.devtype", "usb-controller"}

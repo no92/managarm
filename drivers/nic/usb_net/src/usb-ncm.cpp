@@ -9,15 +9,35 @@ namespace nic::usb_ncm {
 
 constexpr bool debugNcm = false;
 
-UsbNcmNic::UsbNcmNic(protocols::usb::Device hw_device, nic::MacAddress mac,
+UsbNcmNic::UsbNcmNic(mbus_ng::EntityId entity, protocols::usb::Device hw_device, nic::MacAddress mac,
 		protocols::usb::Interface ctrl_intf, protocols::usb::Endpoint ctrl_ep,
 		protocols::usb::Interface data_intf, protocols::usb::Endpoint in, protocols::usb::Endpoint out,
 		size_t config_index)
-	: UsbNic{hw_device, mac, ctrl_intf, ctrl_ep, data_intf, in, out}, config_index_{config_index} {
+	: UsbNic{hw_device, mac, ctrl_intf, ctrl_ep, data_intf, in, out},
+		entity_{entity}, config_index_{config_index} {
 
 }
 
 async::result<void> UsbNcmNic::initialize() {
+	auto config_val = (co_await device_.currentConfigurationValue()).value();
+
+	mbus_ng::ArrayItem interface_drivers;
+	interface_drivers.items.insert(interface_drivers.items.end(), {
+		mbus_ng::ArrayItem{{
+			mbus_ng::StringItem{std::format("{}.{}", config_val, ctrl_intf_.num())},
+			mbus_ng::StringItem{"cdc_ncm"},
+		}},
+		mbus_ng::ArrayItem{{
+			mbus_ng::StringItem{std::format("{}.{}", config_val, data_intf_.num())},
+			mbus_ng::StringItem{"cdc_ncm"},
+		}},
+	});
+
+	auto entity = co_await mbus_ng::Instance::global().getEntity(entity_);
+	co_await entity.updateProperties({
+		{"usb.interface_drivers", interface_drivers},
+	});
+
 	protocols::usb::CdcEthernetNetworking *ecm_hdr = nullptr;
 	protocols::usb::CdcNcm *ncm_hdr = nullptr;
 	auto raw_descs = (co_await device_.configurationDescriptor(config_index_)).value();
