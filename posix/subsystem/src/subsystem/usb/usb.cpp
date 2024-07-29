@@ -30,6 +30,13 @@ std::shared_ptr<drvcore::BusSubsystem> sysfsSubsystem;
 
 std::unordered_map<int, std::shared_ptr<drvcore::Device>> mbusMap;
 
+void UsbBase::setupClass(std::string name, mbus_ng::Properties &prop) {
+	if(classDevices().contains(name))
+		return;
+
+	std::cout << std::format("posix: unhandled sysfs device class '{}', skipping setup", name);
+}
+
 protocols::usb::Device &UsbInterface::device() {
 	return std::static_pointer_cast<UsbDevice>(parentDevice())->device();
 }
@@ -353,6 +360,16 @@ async::detached observeDevicesOnController(mbus_ng::EntityId controllerId) {
 			} else if (event.type == mbus_ng::EnumerationEvent::Type::propertiesChanged) {
 				auto device = mbusMap.find(entity.id());
 				assert(device != mbusMap.end());
+
+				if(event.properties.find("drvcore.device_classes") != event.properties.end()) {
+					auto devclasses = std::get_if<mbus_ng::ArrayItem>(&event.properties["drvcore.device_classes"]);
+
+					for(auto &devclass_item : devclasses->items) {
+						auto devclass = std::get<mbus_ng::StringItem>(devclass_item);
+
+						device->setupClass(devclass.value, event.properties);
+					}
+				}
 
 				auto if_drivers = event.properties.find("usb.interface_drivers");
 				if(if_drivers != event.properties.end()) {

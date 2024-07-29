@@ -10,6 +10,7 @@
 #include "../drvcore.hpp"
 #include "../util.hpp"
 #include "../vfs.hpp"
+#include "classes.hpp"
 #include "fs.bragi.hpp"
 
 namespace input_subsystem {
@@ -42,10 +43,10 @@ CapabilityAttribute keyCapability{"key", EV_KEY, KEY_MAX};
 CapabilityAttribute relCapability{"rel", EV_REL, REL_MAX};
 CapabilityAttribute absCapability{"abs", EV_ABS, ABS_MAX};
 
-struct Device final : UnixDevice, drvcore::ClassDevice {
+struct Device final : UnixDevice, drvcore::Device {
 	Device(VfsType type, int index, helix::UniqueLane lane)
 	: UnixDevice{type},
-			drvcore::ClassDevice{sysfsSubsystem, nullptr, "event" + std::to_string(index), this},
+			drvcore::Device{nullptr, std::format("event{}", index), this},
 			_index{index}, _lane{std::move(lane)} { }
 
 	std::string nodePath() override {
@@ -155,6 +156,9 @@ async::detached run() {
 
 			charRegistry.install(device);
 			drvcore::installDevice(device);
+
+			auto input_class = std::make_shared<InputDevice>(sysfsSubsystem, device->name(), device, device.get());
+			device->addClassDevice(std::move(input_class));
 
 			// TODO: Do this before the device becomes visible in sysfs!
 			auto link = device->directoryNode()->directMkdir("capabilities");

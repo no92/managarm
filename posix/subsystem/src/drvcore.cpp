@@ -84,6 +84,25 @@ Device::Device(std::shared_ptr<Device> parent, std::string name, UnixDevice *uni
 : sysfs::Object{parent ? parent : globalDevicesObject, std::move(name)},
 		_unixDevice{unix_device}, _parentDevice{std::move(parent)} { }
 
+/**
+ * Set up a class for the device.
+ *
+ * Classes are a higher-level view of what a device does; look in your /sys/class/ directory
+ * for some examples.
+ */
+void Device::setupClass(std::string name, mbus_ng::Properties &prop) {
+	if(_classDevices.contains(name))
+		return;
+
+	std::cout << std::format("posix: unhandled sysfs device class '{}', skipping setup", name);
+}
+
+void Device::addClassDevice(std::shared_ptr<ClassDevice> dev) {
+	drvcore::installDevice(dev);
+	assert(dev->getClassPath());
+	_classDevices.insert({dev->getClassPath().value(), std::move(dev)});
+}
+
 std::string Device::getSysfsPath() {
 	std::string path = name();
 	auto parent = directoryNode()->treeLink()->getOwner();
@@ -211,7 +230,7 @@ void installDevice(std::shared_ptr<Device> device) {
 	device->linkToSubsystem();
 	device->realizeAttribute(UeventAttribute::singleton());
 
-	if(auto unix_dev = device->unixDevice(); unix_dev) {
+	if(auto unix_dev = device->unixDevice(); unix_dev && device->installUnixDevice()) {
 		std::stringstream id_ss;
 		id_ss << unix_dev->getId().first << ":" << unix_dev->getId().second;
 		if (unix_dev->type() == VfsType::charDevice)

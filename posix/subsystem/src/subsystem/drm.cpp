@@ -9,6 +9,7 @@
 #include "../drvcore.hpp"
 #include "../util.hpp"
 #include "../vfs.hpp"
+#include "classes.hpp"
 #include "pci.hpp"
 
 namespace drm_subsystem {
@@ -25,12 +26,12 @@ struct Subsystem {
 	}
 } subsystem;
 
-struct Device final : UnixDevice, drvcore::ClassDevice {
+struct Device final : UnixDevice, drvcore::Device {
 	Device(int index, helix::UniqueLane lane, std::shared_ptr<drvcore::Device> parent)
 	: UnixDevice{VfsType::charDevice},
-			drvcore::ClassDevice{sysfsSubsystem, std::move(parent),
-					"card" + std::to_string(index), this},
-			_index{index}, _lane{std::move(lane)} { }
+			drvcore::Device{std::move(parent), std::format("card{}", index), this},
+			_index{index}, _lane{std::move(lane)} {
+	}
 
 	std::string nodePath() override {
 		return "dri/card" + std::to_string(_index);
@@ -45,11 +46,6 @@ struct Device final : UnixDevice, drvcore::ClassDevice {
 	void composeUevent(drvcore::UeventProperties &ue) override {
 		ue.set("SUBSYSTEM", "drm");
 	}
-
-	std::optional<std::string> getClassPath() override {
-		return "drm";
-	};
-
 private:
 	int _index;
 	helix::UniqueLane _lane;
@@ -91,6 +87,9 @@ async::detached run() {
 
 			charRegistry.install(device);
 			drvcore::installDevice(device);
+
+			auto drm_class = std::make_shared<DrmDevice>(sysfsSubsystem, device->name(), device->parentDevice(), device.get());
+			device->addClassDevice(std::move(drm_class));
 		}
 	}
 }
