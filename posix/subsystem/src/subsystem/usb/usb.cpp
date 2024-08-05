@@ -361,8 +361,11 @@ async::detached observeDevicesOnController(mbus_ng::EntityId controllerId) {
 			if (event.type == mbus_ng::EnumerationEvent::Type::created) {
 				co_await bindDevice(std::move(entity), std::move(event.properties));
 			} else if (event.type == mbus_ng::EnumerationEvent::Type::propertiesChanged) {
-				auto device = mbusMap.find(entity.id());
-				assert(device != mbusMap.end());
+				auto device = ({
+					auto device_it = mbusMap.find(entity.id());
+					assert(device_it != mbusMap.end());
+					device_it->second;
+				});
 
 				if(event.properties.find("drvcore.device_classes") != event.properties.end()) {
 					auto devclasses = std::get_if<mbus_ng::ArrayItem>(&event.properties["drvcore.device_classes"]);
@@ -383,7 +386,7 @@ async::detached observeDevicesOnController(mbus_ng::EntityId controllerId) {
 						auto if_num = std::get<mbus_ng::StringItem>(info.at(0)).value;
 						auto driver_name = std::get<mbus_ng::StringItem>(info.at(1)).value;
 
-						auto dev = std::static_pointer_cast<UsbDevice>(device->second);
+						auto dev = std::static_pointer_cast<UsbDevice>(device);
 						auto config_val = (co_await dev->device().currentConfigurationValue()).value();
 						auto dev_if = std::find_if(
 							dev->interfaces.begin(), dev->interfaces.end(),
@@ -392,8 +395,9 @@ async::detached observeDevicesOnController(mbus_ng::EntityId controllerId) {
 							}
 						);
 
-						if(dev_if != dev->interfaces.end()) {
-							dev_if->get()->createSymlink("driver", getInterfaceDriver(driver_name));
+						if(!dev_if->get()->driver && dev_if != dev->interfaces.end()) {
+							dev_if->get()->driver = getInterfaceDriver(driver_name);
+							dev_if->get()->createSymlink("driver", dev_if->get()->driver);
 						}
 
 					}
