@@ -270,6 +270,7 @@ async::result<void> bindDevice(mbus_ng::Entity entity, mbus_ng::Properties prope
 		interface->realizeAttribute(&alternateSettingAttr);
 		interface->realizeAttribute(&interfaceNumAttr);
 		interface->realizeAttribute(&numEndpointsAttr);
+		interface->createSymlink("subsystem", sysfsSubsystem->object());
 
 		for(auto ep : interface->endpoints) {
 			ep->addObject();
@@ -309,6 +310,8 @@ async::result<void> bindDevice(mbus_ng::Entity entity, mbus_ng::Properties prope
 	device->realizeAttribute(&configurationAttr);
 	device->realizeAttribute(&bmAttributesAttr);
 	device->realizeAttribute(&numConfigurationsAttr);
+
+	device->createSymlink("subsystem", sysfsSubsystem->object());
 
 	auto ep = std::make_shared<UsbEndpoint>("ep_00", entity.id(), device);
 	ep->addObject();
