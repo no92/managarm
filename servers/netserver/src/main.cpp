@@ -250,6 +250,16 @@ async::result<protocols::svrctl::Error> bindDevice(int64_t base_id) {
 			co_return err;
 	}
 
+	if(baseDeviceMap.contains(base_id)) {
+		auto dev = baseDeviceMap.at(base_id);
+		auto entity = co_await mbus_ng::Instance::global().getEntity(base_id);
+
+		co_await entity.updateProperties({
+			{"net.ifname", mbus_ng::StringItem{dev->name()}},
+			{"net.ifindex", mbus_ng::StringItem{std::to_string(dev->index())}},
+		});
+	}
+
 	co_return protocols::svrctl::Error::success;
 }
 
