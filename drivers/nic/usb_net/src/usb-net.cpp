@@ -3,6 +3,7 @@
 #include "usb-net.hpp"
 #include "usb-ecm.hpp"
 #include "usb-ncm.hpp"
+#include "usb-mbim.hpp"
 
 UsbNic::UsbNic(protocols::usb::Device hw_device, nic::MacAddress mac,
 		protocols::usb::Interface ctrl_intf, protocols::usb::Endpoint ctrl_ep,
@@ -24,8 +25,14 @@ async::result<std::shared_ptr<nic::Link>> makeShared(mbus_ng::EntityId entity, p
 	auto data_in = (co_await data_intf.getEndpoint(protocols::usb::PipeType::in, info.in_endp_number.value())).unwrap();
 	auto data_out = (co_await data_intf.getEndpoint(protocols::usb::PipeType::out, info.out_endp_number.value())).unwrap();
 
-	if(info.ncm) {
+	if(info.subclass == protocols::usb::cdc_subclass::ncm) {
 		auto nic = std::make_shared<nic::usb_ncm::UsbNcmNic>(entity, std::move(hw_device), mac, std::move(ctrl_intf), std::move(ctrl_ep),
+			std::move(data_intf), std::move(data_in), std::move(data_out), info.configuration_index);
+		co_await nic->initialize();
+
+		co_return nic;
+	} else if(info.subclass == protocols::usb::cdc_subclass::mbim) {
+		auto nic = std::make_shared<nic::usb_mbim::UsbMbimNic>(entity, std::move(hw_device), mac, std::move(ctrl_intf), std::move(ctrl_ep),
 			std::move(data_intf), std::move(data_in), std::move(data_out), info.configuration_index);
 		co_await nic->initialize();
 

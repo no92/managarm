@@ -41,6 +41,7 @@ private:
 id_allocator<uint64_t> ttyUsbAllocator{0};
 id_allocator<uint64_t> ttySAllocator{0};
 id_allocator<uint64_t> driCardAllocator{0};
+id_allocator<uint64_t> cdcWdmAllocator{0};
 
 uint64_t allocateDeviceIds(std::string type) {
 	if(type == "ttyS") {
@@ -49,6 +50,8 @@ uint64_t allocateDeviceIds(std::string type) {
 		return ttyUsbAllocator.allocate();
 	} else if(type == "dri/card") {
 		return driCardAllocator.allocate();
+	} else if(type == "cdc-wdm") {
+		return cdcWdmAllocator.allocate();
 	} else {
 		std::cout << "unhandled device type '" << type << "'" << std::endl;
 		assert(!"unhandled device type");

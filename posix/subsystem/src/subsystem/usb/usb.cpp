@@ -10,10 +10,12 @@
 #include <protocols/usb/client.hpp>
 
 #include "../../drvcore.hpp"
+#include "../classes.hpp"
 #include "../pci.hpp"
 #include "drivers.hpp"
 #include "attributes.hpp"
 #include "devices.hpp"
+#include "drivers.hpp"
 #include "root-hub.hpp"
 #include "usb.hpp"
 
@@ -27,6 +29,8 @@ id_allocator<uint64_t> usbControllerAllocator{};
 namespace usb_subsystem {
 
 std::shared_ptr<drvcore::BusSubsystem> sysfsSubsystem;
+drvcore::ClassSubsystem *usbmiscSubsystem;
+drvcore::ClassSubsystem *netSubsystem;
 
 std::unordered_map<int, std::shared_ptr<drvcore::Device>> mbusMap;
 
@@ -34,7 +38,22 @@ void UsbBase::setupClass(std::string name, mbus_ng::Properties &prop) {
 	if(classDevices().contains(name))
 		return;
 
-	std::cout << std::format("posix: unhandled sysfs device class '{}', skipping setup", name);
+	if(name == "usbmisc") {
+		auto devname = std::get<mbus_ng::StringItem>(prop["drvcore.devname"]).value;
+		if(devname.empty())
+			return;
+		auto usbmisc = std::make_shared<UsbMiscDevice>(usbmiscSubsystem, devname, shared_from_this());
+		addClassDevice(std::move(usbmisc));
+	} else if(name == "net") {
+		auto ifname = std::get<mbus_ng::StringItem>(prop["net.ifname"]).value;
+		auto ifindex = std::get<mbus_ng::StringItem>(prop["net.ifindex"]).value;
+		if(ifname.empty() || ifindex.empty())
+			return;
+		auto net = std::make_shared<NetDevice>(netSubsystem, ifname, std::stol(ifindex), shared_from_this());
+		addClassDevice(std::move(net));
+	} else {
+		std::cout << std::format("posix: unhandled sysfs device class '{}', skipping setup", name);
+	}
 }
 
 protocols::usb::Device &UsbInterface::device() {
@@ -337,6 +356,10 @@ std::shared_ptr<drvcore::BusDriver> getInterfaceDriver(std::string name) {
 		auto ncmDriver = std::make_shared<CdcNcmDriver>(sysfsSubsystem, name);
 		ncmDriver->addObject();
 		interface_driver_list.insert({name, ncmDriver});
+	} else if(name == "cdc_mbim") {
+		auto mbimDriver = std::make_shared<CdcMbimDriver>(sysfsSubsystem, name);
+		mbimDriver->addObject();
+		interface_driver_list.insert({name, mbimDriver});
 	} else {
 		assert(!"unsupported USB interface driver");
 	}
@@ -434,6 +457,8 @@ async::detached observeDevicesOnController(mbus_ng::EntityId controllerId) {
 
 async::detached run() {
 	sysfsSubsystem = std::make_shared<drvcore::BusSubsystem>("usb");
+	usbmiscSubsystem = new drvcore::ClassSubsystem{"usbmisc"};
+	netSubsystem = new drvcore::ClassSubsystem{"net"};
 
 	auto usbControllerFilter = mbus_ng::EqualsFilter{"generic.devtype", "usb-controller"};
 
