@@ -81,6 +81,15 @@ async::detached observeDevices(VfsType devType, auto &registry, int major) {
 			std::cout << "POSIX: Installing " << typeStr << " device "
 					<< sysfs_name << std::endl;
 
+			if(event.properties.contains("drvcore.mbus-parent")) {
+				auto parent_device_id = std::get<mbus_ng::StringItem>(event.properties.at("drvcore.mbus-parent")).value;
+				auto parent_entity = co_await mbus_ng::Instance::global().getEntity(std::stoll(parent_device_id));
+
+				co_await parent_entity.updateProperties({
+					{"drvcore.devname", mbus_ng::StringItem{sysfs_name}},
+				});
+			}
+
 			auto lane = (co_await entity.getRemoteLane()).unwrap();
 			auto device = std::make_shared<Device>(devType,
 					sysfs_name, std::move(lane));
