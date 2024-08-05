@@ -412,9 +412,7 @@ async::detached observeDevicesOnController(mbus_ng::EntityId controllerId) {
 async::detached run() {
 	sysfsSubsystem = std::make_shared<drvcore::BusSubsystem>("usb");
 
-	auto usbControllerFilter = mbus_ng::Conjunction({
-		mbus_ng::EqualsFilter{"generic.devtype", "usb-controller"}
-	});
+	auto usbControllerFilter = mbus_ng::EqualsFilter{"generic.devtype", "usb-controller"};
 
 	auto enumerator = mbus_ng::Instance::global().enumerate(usbControllerFilter);
 	while (true) {
