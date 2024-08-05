@@ -377,6 +377,29 @@ async::detached observeDevicesOnController(mbus_ng::EntityId controllerId) {
 					}
 				}
 
+				if(event.properties.find("usb.interface_classes") != event.properties.end()) {
+					auto classes = std::get_if<mbus_ng::ArrayItem>(&event.properties["usb.interface_classes"]);
+
+					for(auto &info_item : classes->items) {
+						auto info = std::get<mbus_ng::ArrayItem>(info_item).items;
+						auto if_num = std::get<mbus_ng::StringItem>(info.at(0)).value;
+						auto class_name = std::get<mbus_ng::StringItem>(info.at(1)).value;
+
+						auto dev = std::static_pointer_cast<UsbDevice>(device);
+						auto config_val = (co_await dev->device().currentConfigurationValue()).value();
+						auto dev_if = std::find_if(
+							dev->interfaces.begin(), dev->interfaces.end(),
+							[&](const auto &intf) {
+								return std::format("{}.{}", config_val, intf->interfaceNumber) == if_num;
+							}
+						);
+
+						if(dev_if != dev->interfaces.end()) {
+							dev_if->get()->setupClass(class_name, event.properties);
+						}
+					}
+				}
+
 				auto if_drivers = event.properties.find("usb.interface_drivers");
 				if(if_drivers != event.properties.end()) {
 					auto drivers_list = std::get<mbus_ng::ArrayItem>(if_drivers->second).items;
