@@ -195,7 +195,7 @@ if build_drivers or provide_deps
 		# net
 		'nic/usb_net', 'nic/rtl8168', 'nic/freebsd-e1000',
 		# gfx
-		'gfx/bochs', 'gfx/intel', 'gfx/virtio', 'gfx/plainfb', 'gfx/vmware',
+		'gfx/bochs', 'gfx/intel', 'gfx/virtio', 'gfx/plainfb', 'gfx/vmware', 'gfx/nv',
 		# io
 		'kbd', 'tty/virtio-console', 'uart',
 		# usb

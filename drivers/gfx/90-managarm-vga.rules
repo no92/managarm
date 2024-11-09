@@ -2,6 +2,8 @@
 ACTION!="add", GOTO="managarm_vga_end"
 SUBSYSTEM!="pci", GOTO="managarm_vga_end"
 
+ATTR{vendor}=="0x10de", RUN+="/usr/bin/runsvr --fork bind /usr/lib/managarm/server/gfx-nv.bin"
+
 IMPORT{cmdline}="plainfb.force"
 ENV{plainfb.force}=="1", GOTO="managarm_vga_forceplain"
 

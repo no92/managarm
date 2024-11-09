@@ -1,0 +1,5 @@
+name: gfx-nv
+exec: /usr/bin/gfx_nv
+files:
+  - /usr/bin/gfx_nv
+  - /usr/lib/libdrm_core.so
