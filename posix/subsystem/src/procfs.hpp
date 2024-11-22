@@ -331,6 +331,18 @@ private:
 	Process *_process;
 };
 
+struct SymlinkNode final : FsNode, std::enable_shared_from_this<SymlinkNode> {
+	SymlinkNode(std::shared_ptr<MountView>, std::weak_ptr<FsLink>);
+
+	VfsType getType() override;
+	async::result<frg::expected<Error, FileStats>> getStats() override;
+	expected<std::string> readSymlink(FsLink *link, Process *process) override;
+
+private:
+	std::shared_ptr<MountView> _mount;
+	std::weak_ptr<FsLink> _link;
+};
+
 } // namespace procfs
 
 std::shared_ptr<FsLink> getProcfs();

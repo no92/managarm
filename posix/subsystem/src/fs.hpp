@@ -52,6 +52,7 @@ public:
 	virtual std::string getName() = 0;
 	virtual std::shared_ptr<FsNode> getTarget() = 0;
 	virtual async::result<frg::expected<Error>> obstruct();
+	virtual std::optional<std::string> getProcFsDescription();
 };
 
 struct FsSuperblock {
@@ -216,6 +217,10 @@ public:
 
 	std::string getName() override {
 		throw std::runtime_error("SpecialLink has no name");
+	}
+
+	std::optional<std::string> getProcFsDescription() override {
+		return "anon_inode:unimplemented";
 	}
 
 private:
