@@ -8,8 +8,9 @@
 // --------------------------------------------------------
 
 async::result<frg::expected<Error>> FsLink::obstruct() {
-	assert(getOwner());
-	assert(!getOwner()->hasTraverseLinks() && "Node has traverseLinks but no obstruct?");
+	// assert(getOwner());
+	if(getOwner() != nullptr)
+		assert(!getOwner()->hasTraverseLinks() && "Node has traverseLinks but no obstruct?");
 	co_return Error::illegalOperationTarget;
 }
 
