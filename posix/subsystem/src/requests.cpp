@@ -1480,6 +1480,100 @@ async::result<void> serveRequests(std::shared_ptr<Process> self,
 			}
 
 			auto fsstatsResult = co_await target_link->getTarget()->getFsstats();
+			if(!fsstatsResult) {
+				if(fsstatsResult.error() == Error::illegalOperationTarget) {
+					co_await sendErrorResponse(managarm::posix::Errors::ILLEGAL_OPERATION_TARGET);
+					continue;
+				}
+			}
+			assert(fsstatsResult);
+			auto fsstats = fsstatsResult.value();
+
+			managarm::posix::FstatfsResponse resp;
+			resp.set_error(managarm::posix::Errors::SUCCESS);
+
+			resp.set_fstype(fsstats.f_type);
+
+			auto [send_resp] = co_await helix_ng::exchangeMsgs(
+					conversation,
+					helix_ng::sendBragiHeadOnly(resp, frg::stl_allocator{})
+				);
+
+			HEL_CHECK(send_resp.error());
+		} else if(preamble.id() == managarm::posix::StatfsRequest::message_id) {
+			std::cout << "STATFS KANKER KANKER KANKER" << std::endl;
+			std::vector<std::byte> tail(preamble.tail_size());
+			auto [recvTail] = co_await helix_ng::exchangeMsgs(
+					conversation,
+					helix_ng::recvBuffer(tail.data(), tail.size())
+				);
+			HEL_CHECK(recvTail.error());
+
+			auto req = bragi::parse_head_tail<managarm::posix::StatfsRequest>(recv_head, tail);
+			if (!req) {
+				std::cout << "posix: Rejecting request due to decoding failure" << std::endl;
+				break;
+			}
+
+			if(logRequests || logPaths)
+				std::cout << "posix: STATFS request on path: " << req->path() << std::endl;
+
+			// if(!req->path().size()) {
+			// 	co_await sendErrorResponse(managarm::posix::Errors::ILLEGAL_ARGUMENTS);
+			// 	continue;
+			// }
+
+			std::shared_ptr<FsLink> target_link;
+
+			PathResolver resolver;
+			resolver.setup(self->fsContext()->getRoot(), self->fsContext()->getWorkingDirectory(),
+					req->path(), self.get());
+
+			auto resolveResult = co_await resolver.resolve();
+			if(!resolveResult) {
+				if(resolveResult.error() == protocols::fs::Error::fileNotFound) {
+					co_await sendErrorResponse(managarm::posix::Errors::FILE_NOT_FOUND);
+					continue;
+				} else if(resolveResult.error() == protocols::fs::Error::notDirectory) {
+					co_await sendErrorResponse(managarm::posix::Errors::NOT_A_DIRECTORY);
+					continue;
+				} else {
+					std::cout << "posix: Unexpected failure from resolve()" << std::endl;
+					co_return;
+				}
+			}
+
+			// ViewPath relative_to;
+			// smarter::shared_ptr<File, FileHandle> file;
+			// std::shared_ptr<FsLink> target_link;
+
+			// file = self->fileContext()->getFile(req->fd());
+
+			// if (!file) {
+			// 	co_await sendErrorResponse(managarm::posix::Errors::BAD_FD);
+			// 	continue;
+			// }
+
+			// relative_to = {file->associatedMount(), file->associatedLink()};
+
+			// target_link = file->associatedLink();
+
+			// This catches cases where associatedLink is called on a file, but the file doesn't implement that.
+			// Instead of blowing up, return ENOENT.
+			// if(target_link == nullptr) {
+			// 	co_await sendErrorResponse(managarm::posix::Errors::FILE_NOT_FOUND);
+			// 	continue;
+			// }
+
+			target_link = resolver.currentLink();
+
+			auto fsstatsResult = co_await target_link->getTarget()->getFsstats();
+			if(!fsstatsResult) {
+				if(fsstatsResult.error() == Error::illegalOperationTarget) {
+					co_await sendErrorResponse(managarm::posix::Errors::ILLEGAL_OPERATION_TARGET);
+					continue;
+				}
+			}
 			assert(fsstatsResult);
 			auto fsstats = fsstatsResult.value();
 

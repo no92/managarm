@@ -31,7 +31,8 @@ async::result<frg::expected<Error, FileStats>> FsNode::getStats() {
 }
 
 async::result<frg::expected<Error, FsFileStats>> FsNode::getFsstats() {
-	throw std::runtime_error("getFsstats() is not implemented for this FsNode");
+	std::cout << "posix: getFsstats() is not implemented for this FsNode" << std::endl;
+	co_return Error::illegalOperationTarget;
 }
 
 std::shared_ptr<FsLink> FsNode::treeLink() {

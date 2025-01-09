@@ -594,3 +594,9 @@ head(128):
 	Errors error;
 	uint64 fstype;
 }
+
+message StatfsRequest 97 {
+head(128):
+tail:
+	string path;
+}
