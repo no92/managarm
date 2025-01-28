@@ -67,6 +67,19 @@ async::result<void> serveRequests(std::shared_ptr<Process> self,
 
 		auto conversation = accept.descriptor();
 
+		auto preamble = bragi::read_preamble(recv_head);
+		assert(!preamble.error());
+		recv_head.reset();
+
+		std::vector<uint8_t> tail(preamble.tail_size());
+		if(preamble.tail_size()) {
+			auto [recv_tail] = co_await helix_ng::exchangeMsgs(
+					conversation,
+					helix_ng::recvBuffer(tail.data(), tail.size())
+				);
+			HEL_CHECK(recv_tail.error());
+		}
+
 		auto sendErrorResponse = [&conversation]<typename Message = managarm::posix::SvrResponse>(managarm::posix::Errors err) -> async::result<void> {
 			Message resp;
 			resp.set_error(err);
@@ -78,10 +91,6 @@ async::result<void> serveRequests(std::shared_ptr<Process> self,
 
 			HEL_CHECK(send_resp.error());
 		};
-
-		auto preamble = bragi::read_preamble(recv_head);
-		assert(!preamble.error());
-		recv_head.reset();
 
 		managarm::posix::CntRequest req;
 		if (preamble.id() == managarm::posix::CntRequest::message_id) {
@@ -653,13 +662,6 @@ async::result<void> serveRequests(std::shared_ptr<Process> self,
 			co_await transmit.async_wait();
 			HEL_CHECK(send_resp.error());
 		}else if(preamble.id() == managarm::posix::MountRequest::message_id) {
-			std::vector<std::byte> tail(preamble.tail_size());
-			auto [recv_tail] = co_await helix_ng::exchangeMsgs(
-					conversation,
-					helix_ng::recvBuffer(tail.data(), tail.size())
-				);
-			HEL_CHECK(recv_tail.error());
-
 			auto req = bragi::parse_head_tail<managarm::posix::MountRequest>(recv_head, tail);
 
 			if (!req) {
@@ -826,13 +828,6 @@ async::result<void> serveRequests(std::shared_ptr<Process> self,
 			co_await transmit.async_wait();
 			HEL_CHECK(send_resp.error());
 		}else if(preamble.id() == managarm::posix::AccessAtRequest::message_id) {
-			std::vector<std::byte> tail(preamble.tail_size());
-			auto [recv_tail] = co_await helix_ng::exchangeMsgs(
-					conversation,
-					helix_ng::recvBuffer(tail.data(), tail.size())
-				);
-			HEL_CHECK(recv_tail.error());
-
 			auto req = bragi::parse_head_tail<managarm::posix::AccessAtRequest>(recv_head, tail);
 
 			if(!req) {
@@ -891,13 +886,6 @@ async::result<void> serveRequests(std::shared_ptr<Process> self,
 
 			co_await sendErrorResponse(managarm::posix::Errors::SUCCESS);
 		}else if(preamble.id() == managarm::posix::MkdirAtRequest::message_id) {
-			std::vector<std::byte> tail(preamble.tail_size());
-			auto [recv_tail] = co_await helix_ng::exchangeMsgs(
-					conversation,
-					helix_ng::recvBuffer(tail.data(), tail.size())
-				);
-			HEL_CHECK(recv_tail.error());
-
 			auto req = bragi::parse_head_tail<managarm::posix::MkdirAtRequest>(recv_head, tail);
 
 			if (!req) {
@@ -970,13 +958,6 @@ async::result<void> serveRequests(std::shared_ptr<Process> self,
 
 			co_await sendErrorResponse(managarm::posix::Errors::SUCCESS);
 		}else if(preamble.id() == managarm::posix::MkfifoAtRequest::message_id) {
-			std::vector<std::byte> tail(preamble.tail_size());
-			auto [recv_tail] = co_await helix_ng::exchangeMsgs(
-					conversation,
-					helix_ng::recvBuffer(tail.data(), tail.size())
-				);
-			HEL_CHECK(recv_tail.error());
-
 			auto req = bragi::parse_head_tail<managarm::posix::MkfifoAtRequest>(recv_head, tail);
 
 			if (!req) {
@@ -1040,13 +1021,6 @@ async::result<void> serveRequests(std::shared_ptr<Process> self,
 
 			co_await sendErrorResponse(managarm::posix::Errors::SUCCESS);
 		}else if(preamble.id() == managarm::posix::LinkAtRequest::message_id) {
-			std::vector<std::byte> tail(preamble.tail_size());
-			auto [recv_tail] = co_await helix_ng::exchangeMsgs(
-					conversation,
-					helix_ng::recvBuffer(tail.data(), tail.size())
-				);
-			HEL_CHECK(recv_tail.error());
-
 			auto req = bragi::parse_head_tail<managarm::posix::LinkAtRequest>(recv_head, tail);
 
 			if(logRequests)
@@ -1143,13 +1117,6 @@ async::result<void> serveRequests(std::shared_ptr<Process> self,
 
 			co_await sendErrorResponse(managarm::posix::Errors::SUCCESS);
 		}else if(preamble.id() == managarm::posix::SymlinkAtRequest::message_id) {
-			std::vector<std::byte> tail(preamble.tail_size());
-			auto [recv_tail] = co_await helix_ng::exchangeMsgs(
-					conversation,
-					helix_ng::recvBuffer(tail.data(), tail.size())
-				);
-			HEL_CHECK(recv_tail.error());
-
 			auto req = bragi::parse_head_tail<managarm::posix::SymlinkAtRequest>(recv_head, tail);
 
 			if (!req) {
@@ -1220,13 +1187,6 @@ async::result<void> serveRequests(std::shared_ptr<Process> self,
 			);
 			HEL_CHECK(sendResp.error());
 		}else if(preamble.id() == managarm::posix::RenameAtRequest::message_id) {
-			std::vector<std::byte> tail(preamble.tail_size());
-			auto [recv_tail] = co_await helix_ng::exchangeMsgs(
-					conversation,
-					helix_ng::recvBuffer(tail.data(), tail.size())
-				);
-			HEL_CHECK(recv_tail.error());
-
 			auto req = bragi::parse_head_tail<managarm::posix::RenameAtRequest>(recv_head, tail);
 
 			if (!req) {
@@ -1321,13 +1281,6 @@ async::result<void> serveRequests(std::shared_ptr<Process> self,
 
 			co_await sendErrorResponse(managarm::posix::Errors::SUCCESS);
 		}else if(preamble.id() == managarm::posix::FstatAtRequest::message_id) {
-			std::vector<std::byte> tail(preamble.tail_size());
-			auto [recv_tail] = co_await helix_ng::exchangeMsgs(
-					conversation,
-					helix_ng::recvBuffer(tail.data(), tail.size())
-				);
-			HEL_CHECK(recv_tail.error());
-
 			auto req = bragi::parse_head_tail<managarm::posix::FstatAtRequest>(recv_head, tail);
 
 			if (!req) {
@@ -1510,13 +1463,6 @@ async::result<void> serveRequests(std::shared_ptr<Process> self,
 
 			HEL_CHECK(send_resp.error());
 		}else if(preamble.id() == managarm::posix::FchmodAtRequest::message_id) {
-			std::vector<std::byte> tail(preamble.tail_size());
-			auto [recv_tail] = co_await helix_ng::exchangeMsgs(
-					conversation,
-					helix_ng::recvBuffer(tail.data(), tail.size())
-				);
-			HEL_CHECK(recv_tail.error());
-
 			auto req = bragi::parse_head_tail<managarm::posix::FchmodAtRequest>(recv_head, tail);
 
 			if(logRequests)
@@ -1580,13 +1526,6 @@ async::result<void> serveRequests(std::shared_ptr<Process> self,
 
 			co_await sendErrorResponse(managarm::posix::Errors::SUCCESS);
 		}else if(preamble.id() == managarm::posix::UtimensAtRequest::message_id) {
-			std::vector<std::byte> tail(preamble.tail_size());
-			auto [recv_tail] = co_await helix_ng::exchangeMsgs(
-					conversation,
-					helix_ng::recvBuffer(tail.data(), tail.size())
-				);
-			HEL_CHECK(recv_tail.error());
-
 			auto req = bragi::parse_head_tail<managarm::posix::UtimensAtRequest>(recv_head, tail);
 
 			if (!req) {
@@ -1650,13 +1589,6 @@ async::result<void> serveRequests(std::shared_ptr<Process> self,
 
 			co_await sendErrorResponse(managarm::posix::Errors::SUCCESS);
 		}else if(preamble.id() == bragi::message_id<managarm::posix::ReadlinkAtRequest>) {
-			std::vector<std::byte> tail(preamble.tail_size());
-			auto [recvTail] = co_await helix_ng::exchangeMsgs(
-					conversation,
-					helix_ng::recvBuffer(tail.data(), tail.size())
-				);
-			HEL_CHECK(recvTail.error());
-
 			auto req = bragi::parse_head_tail<managarm::posix::ReadlinkAtRequest>(recv_head, tail);
 			if (!req) {
 				std::cout << "posix: Rejecting request due to decoding failure" << std::endl;
@@ -1744,13 +1676,6 @@ async::result<void> serveRequests(std::shared_ptr<Process> self,
 				HEL_CHECK(send_resp.error());
 			}
 		}else if(preamble.id() == bragi::message_id<managarm::posix::OpenAtRequest>) {
-			std::vector<std::byte> tail(preamble.tail_size());
-			auto [recvTail] = co_await helix_ng::exchangeMsgs(
-					conversation,
-					helix_ng::recvBuffer(tail.data(), tail.size())
-				);
-			HEL_CHECK(recvTail.error());
-
 			auto req = bragi::parse_head_tail<managarm::posix::OpenAtRequest>(recv_head, tail);
 			if (!req) {
 				std::cout << "posix: Rejecting request due to decoding failure" << std::endl;
@@ -1846,15 +1771,15 @@ async::result<void> serveRequests(std::shared_ptr<Process> self,
 					}
 				}
 				assert(tailResult);
-				auto tail = tailResult.value();
-				if(tail) {
+				auto pathTail = tailResult.value();
+				if(pathTail) {
 					if(req->flags() & managarm::posix::OpenFlags::OF_EXCLUSIVE) {
 						co_await sendErrorResponse(managarm::posix::Errors::ALREADY_EXISTS);
 						continue;
 					}else{
-						auto target = tail->getTarget();
+						auto target = pathTail->getTarget();
 						auto fileResult = co_await target->open(
-											resolver.currentView(), std::move(tail),
+											resolver.currentView(), std::move(pathTail),
 											semantic_flags);
 						assert(fileResult);
 						file = fileResult.value();
@@ -2184,13 +2109,6 @@ async::result<void> serveRequests(std::shared_ptr<Process> self,
 			HEL_CHECK(send_resp.error());
 			HEL_CHECK(send_path.error());
 		}else if(preamble.id() == managarm::posix::UnlinkAtRequest::message_id) {
-			std::vector<std::byte> tail(preamble.tail_size());
-			auto [recv_tail] = co_await helix_ng::exchangeMsgs(
-					conversation,
-					helix_ng::recvBuffer(tail.data(), tail.size())
-				);
-			HEL_CHECK(recv_tail.error());
-
 			auto req = bragi::parse_head_tail<managarm::posix::UnlinkAtRequest>(recv_head, tail);
 
 			if (!req) {
@@ -2272,13 +2190,6 @@ async::result<void> serveRequests(std::shared_ptr<Process> self,
 
 			co_await sendErrorResponse(managarm::posix::Errors::SUCCESS);
 		}else if(preamble.id() == managarm::posix::RmdirRequest::message_id) {
-			std::vector<std::byte> tail(preamble.tail_size());
-			auto [recv_tail] = co_await helix_ng::exchangeMsgs(
-					conversation,
-					helix_ng::recvBuffer(tail.data(), tail.size())
-				);
-			HEL_CHECK(recv_tail.error());
-
 			auto req = bragi::parse_head_tail<managarm::posix::RmdirRequest>(recv_head, tail);
 
 			if (!req) {
@@ -2573,14 +2484,6 @@ async::result<void> serveRequests(std::shared_ptr<Process> self,
 
 				HEL_CHECK(send_resp.error());
 			} else if(recv_preamble.id() == managarm::fs::IfconfReply::message_id) {
-				std::vector<std::byte> tail(recv_preamble.tail_size());
-				auto [recv_tail] =
-					co_await helix_ng::exchangeMsgs(
-						offer.descriptor(),
-						helix_ng::recvBuffer(tail.data(), tail.size())
-					);
-				HEL_CHECK(recv_tail.error());
-
 				auto resp = *bragi::parse_head_tail<managarm::fs::IfconfReply>(recv_resp, tail);
 
 				auto [send_resp, send_tail] = co_await helix_ng::exchangeMsgs(
@@ -3114,13 +3017,6 @@ async::result<void> serveRequests(std::shared_ptr<Process> self,
 
 			HEL_CHECK(send_resp.error());
 		}else if(preamble.id() == managarm::posix::InotifyAddRequest::message_id) {
-			std::vector<std::byte> tail(preamble.tail_size());
-			auto [recv_tail] = co_await helix_ng::exchangeMsgs(
-					conversation,
-					helix_ng::recvBuffer(tail.data(), tail.size())
-				);
-			HEL_CHECK(recv_tail.error());
-
 			auto req = bragi::parse_head_tail<managarm::posix::InotifyAddRequest>(recv_head, tail);
 
 			if (!req) {
@@ -3205,13 +3101,6 @@ async::result<void> serveRequests(std::shared_ptr<Process> self,
 
 			HEL_CHECK(send_resp.error());
 		}else if(preamble.id() == managarm::posix::MknodAtRequest::message_id) {
-			std::vector<std::byte> tail(preamble.tail_size());
-			auto [recv_tail] = co_await helix_ng::exchangeMsgs(
-					conversation,
-					helix_ng::recvBuffer(tail.data(), tail.size())
-				);
-			HEL_CHECK(recv_tail.error());
-
 			auto req = bragi::parse_head_tail<managarm::posix::MknodAtRequest>(recv_head, tail);
 
 			if(!req) {
@@ -3479,13 +3368,6 @@ async::result<void> serveRequests(std::shared_ptr<Process> self,
 			HEL_CHECK(send_resp.error());
 		}else if(preamble.id() == managarm::posix::MemFdCreateRequest::message_id) {
 			managarm::posix::SvrResponse resp;
-			std::vector<std::byte> tail(preamble.tail_size());
-			auto [recv_tail] = co_await helix_ng::exchangeMsgs(
-					conversation,
-					helix_ng::recvBuffer(tail.data(), tail.size())
-				);
-			HEL_CHECK(recv_tail.error());
-
 			auto req = bragi::parse_head_tail<managarm::posix::MemFdCreateRequest>(recv_head, tail);
 
 			if (!req) {
@@ -3523,13 +3405,6 @@ async::result<void> serveRequests(std::shared_ptr<Process> self,
 				);
 			HEL_CHECK(sendResp.error());
 		}else if(preamble.id() == managarm::posix::SetAffinityRequest::message_id) {
-			std::vector<uint8_t> tail(preamble.tail_size());
-			auto [recv_tail] = co_await helix_ng::exchangeMsgs(
-					conversation,
-					helix_ng::recvBuffer(tail.data(), tail.size())
-				);
-			HEL_CHECK(recv_tail.error());
-
 			auto req = bragi::parse_head_tail<managarm::posix::SetAffinityRequest>(recv_head, tail);
 
 			if (!req) {
