@@ -15,7 +15,7 @@ struct VirtualSpace;
 
 template<typename Cursor, typename PageSpace>
 frg::expected<Error> mapPresentPagesByCursor(PageSpace *ps, VirtualAddr va,
-		MemoryView *view, uintptr_t offset, size_t size, PageFlags flags) {
+		MemoryView *view, uintptr_t offset, size_t size, PageFlags flags, CachingMode mode = CachingMode::null) {
 	assert(!(va & (kPageSize - 1)));
 	assert(!(offset & (kPageSize - 1)));
 	assert(!(size & (kPageSize - 1)));
@@ -29,8 +29,9 @@ frg::expected<Error> mapPresentPagesByCursor(PageSpace *ps, VirtualAddr va,
 			continue;
 		}
 		assert(!(physicalRange.template get<0>() & (kPageSize - 1)));
+		auto cachingMode = mode == CachingMode::null ? physicalRange.template get<1>() : mode;
 
-		c.map4k(physicalRange.template get<0>(), flags, physicalRange.template get<1>());
+		c.map4k(physicalRange.template get<0>(), flags, cachingMode);
 		c.advance4k();
 	}
 	return {};
@@ -169,7 +170,7 @@ struct VirtualOperations {
 	// The advantage of this approach is that we do not need on virtual call per page anymore.
 
 	virtual frg::expected<Error> mapPresentPages(VirtualAddr va, MemoryView *view,
-			uintptr_t offset, size_t size, PageFlags flags);
+			uintptr_t offset, size_t size, PageFlags flags, CachingMode mode = CachingMode::null);
 
 	virtual frg::expected<Error> remapPresentPages(VirtualAddr va, MemoryView *view,
 			uintptr_t offset, size_t size, PageFlags flags);
@@ -683,9 +684,9 @@ struct AddressSpace final : VirtualSpace, smarter::crtp_counter<AddressSpace, Bi
 		}
 
 		frg::expected<Error> mapPresentPages(VirtualAddr va, MemoryView *view,
-				uintptr_t offset, size_t size, PageFlags flags) override {
+				uintptr_t offset, size_t size, PageFlags flags, CachingMode mode = CachingMode::null) override {
 			return mapPresentPagesByCursor<ClientPageSpace::Cursor>(&space_->pageSpace_,
-					va, view, offset, size, flags);
+					va, view, offset, size, flags, mode);
 		}
 
 		frg::expected<Error> remapPresentPages(VirtualAddr va, MemoryView *view,
