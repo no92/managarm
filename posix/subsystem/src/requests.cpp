@@ -2936,9 +2936,13 @@ async::result<void> serveRequests(std::shared_ptr<Process> self,
 
 				// addItem() can fail with EEXIST but we check for duplicate FDs above
 				// so that cannot happen here.
-				Error ret = epoll::addItem(epfile.get(), self.get(),
+				Error ret = co_await epoll::addItem(epfile.get(), self.get(),
 						std::move(locked), req.fds(i), mask, req.fds(i));
-				assert(ret == Error::success);
+				if (ret != Error::success) {
+					co_await sendErrorResponse(ret | toPosixProtoError);
+					errorOut = true;
+					break;
+				}
 			}
 			if(errorOut)
 				continue;
@@ -3019,10 +3023,10 @@ async::result<void> serveRequests(std::shared_ptr<Process> self,
 
 			auto locked = file->weakFile().lock();
 			assert(locked);
-			Error ret = epoll::addItem(epfile.get(), self.get(),
+			Error ret = co_await epoll::addItem(epfile.get(), self.get(),
 					std::move(locked), req.newfd(), req.flags(), req.cookie());
-			if(ret == Error::alreadyExists) {
-				co_await sendErrorResponse(managarm::posix::Errors::ALREADY_EXISTS);
+			if(ret != Error::success) {
+				co_await sendErrorResponse(ret | toPosixProtoError);
 				continue;
 			}
 			assert(ret == Error::success);

@@ -150,15 +150,20 @@ public:
 		// Nothing to do here.
 	}
 
-	Error addItem(Process *process, smarter::shared_ptr<File> file, int fd,
+	async::result<Error> addItem(Process *process, smarter::shared_ptr<File> file, int fd,
 			int mask, uint64_t cookie) {
 		if(logEpoll)
 			std::cout << "posix.epoll \e[1;34m" << structName() << "\e[0m: Adding item \e[1;34m"
 					<< file->structName() << "\e[0m. Mask is " << mask << std::endl;
 		// TODO: Fix the memory-leak.
 		if(_fileMap.find({file.get(), fd}) != _fileMap.end()) {
-			return Error::alreadyExists;
+			co_return Error::alreadyExists;
 		}
+
+		// check if the file can be polled
+		auto pollStatusResult = co_await file->pollStatus(process);
+		if (!pollStatusResult && pollStatusResult.error() == Error::illegalOperationTarget)
+			co_return pollStatusResult.error();
 
 		auto item = smarter::make_shared<Item>(smarter::static_pointer_cast<OpenFile>(weakFile().lock()),
 				process, std::move(file), mask, cookie);
@@ -172,7 +177,7 @@ public:
 		_pendingQueue.push_back(*item);
 		_currentSeq++;
 		_statusBell.raise();
-		return Error::success;
+		co_return Error::success;
 	}
 
 	Error modifyItem(File *file, int fd, int mask, uint64_t cookie) {
@@ -445,7 +450,7 @@ smarter::shared_ptr<File, FileHandle> createFile() {
 	return File::constructHandle(std::move(file));
 }
 
-Error addItem(File *epfile, Process *process, smarter::shared_ptr<File> file, int fd,
+async::result<Error> addItem(File *epfile, Process *process, smarter::shared_ptr<File> file, int fd,
 		int flags, uint64_t cookie) {
 	auto epoll = static_cast<OpenFile *>(epfile);
 	return epoll->addItem(process, std::move(file), fd, flags, cookie);
